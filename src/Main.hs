@@ -48,6 +48,7 @@ repl decls = forever (getLine >>= interpret)
         putStrLn "Insert the stub to lookup completions for:"
         stub <- T.getLine
         print (findCompletion decls stub)
+    interpret _ = putStrLn "Enter one of: [typeLookup, completion]"
 
 readExts :: [FilePath] -> IO ExternParse
 readExts fps = do
