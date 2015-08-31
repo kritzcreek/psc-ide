@@ -1,6 +1,8 @@
 module Main where
 
 import           Control.Monad       (forever)
+import           Control.Monad.State
+import           Control.Monad.Trans
 import qualified Data.Text.IO        as T
 import           Options.Applicative
 import           Purescript.Ide
@@ -27,7 +29,7 @@ main = execParser opts >>= pscIde
 
 pscIde :: Options -> IO ()
 pscIde opts = do
-    exts <- readExts (externs opts)
+    exts <- sequence <$> mapM readExternFile (externs opts)
     case exts of
         Right exts' -> repl exts'
         Left err ->
@@ -35,22 +37,30 @@ pscIde opts = do
             "There was an error when trying to parse the extern files: " <>
             show err
 
-repl :: [ExternDecl] ->IO ()
-repl decls = forever (getLine >>= interpret)
+repl :: [[ExternDecl]] -> IO ()
+repl decls =
+    evalStateT
+        (forever (liftIO getLine >>= interpret))
+        (PscState (map unsafeModuleFromDecls decls))
   where
-    interpret :: String -> IO ()
+    interpret :: String -> PscIde ()
     interpret "typeLookup" = do
-        putStrLn "Insert the function name to look for:"
-        fname <- T.getLine
-        putStrLn $
-            maybe "No function found." show (findTypeForName decls fname)
+        liftIO $ putStrLn "Insert the function name to look for:"
+        fname <- liftIO T.getLine
+        ftype <- findTypeForName fname
+        liftIO $ putStrLn $ maybe "No function found." show ftype
     interpret "completion" = do
-        putStrLn "Insert the stub to lookup completions for:"
-        stub <- T.getLine
-        print (findCompletion decls stub)
-    interpret _ = putStrLn "Enter one of: [typeLookup, completion]"
+        liftIO $ putStrLn "Insert the stub to lookup completions for:"
+        stub <- liftIO T.getLine
+        liftIO . print =<< findCompletion stub
+    interpret "load" = do
+        liftIO $ putStrLn "Insert the filepath to the extern file to import"
+        fp <- liftIO getLine
+        loadModule fp
+    interpret "print" = printModules
+    interpret _ = liftIO $ putStrLn "Enter one of: [typeLookup, completion, load, print]"
 
-readExts :: [FilePath] -> IO ExternParse
-readExts fps = do
-    exts <- mapM readExternFile fps
-    return $ fmap concat (sequence exts)
+-- readExts :: [FilePath] -> IO ExternParse
+-- readExts fps = do
+--     exts <- mapM readExternFile fps
+--     return $ fmap concat (sequence exts)
