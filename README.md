@@ -7,24 +7,31 @@ Looks to support type lookup, function lookup, autocomplete, etc.
 
 ## Currently supports the following commands:
 
-### `typeLookup`:
+### typeLookup:
+
+ ```
  < psc-ide externFile.purs
  < typeLookup
  > Insert the function name to look for:
  < id
  > forall a. a -> a
+ ```
 
-### `typeLookup`:
+### completion:
+
+ ```
  < psc-ide externFile.purs
  < completion
  > Insert the function name to look for:
  < fil
  > ["filter", "filterM"]
+ ```
 
 ## Sample interaction:
 
   ```
   psc-ide externs.purs
+  typeLookup
   Insert the function name to look for:
   filter
   "forall a. (a -> Prim.Boolean) -> Prim.Array a -> Prim.Array a"
