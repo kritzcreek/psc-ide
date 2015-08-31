@@ -4,11 +4,15 @@ module Purescript.Ide
   (
     readExternFile,
     findTypeForName,
-    ExternParse
+    findCompletion,
+    ExternParse,
+    ExternDecl
   ) where
+
 
 import           Data.Char        (digitToInt)
 import           Data.Foldable
+import           Data.Maybe       (mapMaybe)
 import           Data.Monoid
 import           Data.Text        (Text ())
 import qualified Data.Text        as T
@@ -20,20 +24,22 @@ type ExternParse = Either ParseError [ExternDecl]
 
 data Fixity = Infix | Infixl | Infixr deriving(Show, Eq)
 
-data ExternDecl =
-  FunctionDecl {
-    functionName :: Text,
-    functionType :: Text
-    }
-  | FixityDeclaration Fixity Int Text
-  | Dependency {
-    dependencyModule :: Text,
-    dependencyNames  :: Text
-    }
-  | ModuleDecl Text [Text]
-  | DataDecl Text Text
-  deriving(Show, Eq)
+data ExternDecl
+    = FunctionDecl { functionName :: Text
+                   , functionType :: Text}
+    | FixityDeclaration Fixity
+                        Int
+                        Text
+    | Dependency { dependencyModule :: Text
+                 , dependencyNames :: Text}
+    | ModuleDecl Text
+                 [Text]
+    | DataDecl Text
+               Text
+    deriving (Show,Eq)
 
+-- | Given a set of ExternDeclarations finds the type for a given function
+--   name and returns Nothing if the functionName can not be matched
 findTypeForName :: [ExternDecl] -> Text -> Maybe Text
 findTypeForName decls search = getFirst $ fold (map (First . go) decls)
   where
@@ -46,6 +52,22 @@ findTypeForName decls search = getFirst $ fold (map (First . go) decls)
                     else Nothing
             _ -> Nothing
 
+-- | Given a set of ExternDeclarations finds all the possible completions.
+--   Doesn't do any fancy flex matching. Just prefix search
+findCompletion :: [ExternDecl] -> Text -> [Text]
+findCompletion decls stub = mapMaybe go decls
+  where
+    matches name =
+        if stub `T.isPrefixOf` name
+            then Just name
+            else Nothing
+    go :: ExternDecl -> Maybe Text
+    go (FunctionDecl name _) = matches name
+    go (DataDecl name _) = matches name
+    go _ = Nothing
+
+
+-- | Parses an extern file into the ExternDecl format.
 readExternFile :: FilePath -> IO ExternParse
 readExternFile fp = readExtern <$> (T.lines <$> T.readFile fp)
 
