@@ -1,6 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Purescript.Ide where
+module Purescript.Ide
+  (
+    readExternFile,
+    findTypeForName,
+    ExternParse
+  ) where
 
 import           Data.Char        (digitToInt)
 import           Data.Foldable
@@ -26,15 +31,28 @@ data ExternDecl =
     dependencyNames  :: Text
     }
   | ModuleDecl Text [Text]
+  | DataDecl Text Text
   deriving(Show, Eq)
+
+findTypeForName :: [ExternDecl] -> Text -> Maybe Text
+findTypeForName decls search = getFirst $ fold (map (First . go) decls)
+  where
+    go :: ExternDecl -> Maybe Text
+    go decl =
+        case decl of
+            FunctionDecl n t ->
+                if search == n
+                    then Just t
+                    else Nothing
+            _ -> Nothing
+
+readExternFile :: FilePath -> IO ExternParse
+readExternFile fp = readExtern <$> (T.lines <$> T.readFile fp)
 
 readExtern:: [Text] -> ExternParse
 readExtern strs = mapM (parse parseExternDecl "") clean
   where
     clean = removeComments strs
-
-readExternFile :: FilePath -> IO ExternParse
-readExternFile fp = readExtern <$> (T.lines <$> T.readFile fp)
 
 removeComments :: [Text] -> [Text]
 removeComments = filter (not . T.isPrefixOf "--")
@@ -42,6 +60,7 @@ removeComments = filter (not . T.isPrefixOf "--")
 parseExternDecl :: Parser ExternDecl
 parseExternDecl =
     try parseDependency <|> try parseFixityDecl <|> try parseFunctionDecl <|>
+    try parseDataDecl <|>
     return (ModuleDecl "" [])
 
 parseDependency :: Parser ExternDecl
@@ -81,17 +100,17 @@ parseFunctionDecl = do
     eof
     return (FunctionDecl (T.pack name) (T.pack type'))
 
-findTypeForName :: [ExternDecl] -> Text -> Maybe Text
-findTypeForName decls search = getFirst $ fold (map (First . go) decls)
-  where
-    go :: ExternDecl -> Maybe Text
-    go decl =
-        case decl of
-            FunctionDecl n t ->
-                if search == n
-                    then Just t
-                    else Nothing
-            _ -> Nothing
+parseDataDecl :: Parser ExternDecl
+parseDataDecl = do
+  string "foreign import data"
+  spaces
+  name <- many1 (noneOf " ")
+  spaces
+  string "::"
+  spaces
+  kind <- many1 anyChar
+  eof
+  return $ DataDecl (T.pack name) (T.pack kind)
 
 -- Utilities for testing in ghci
 findTypeForName' :: Text -> IO (Maybe Text)
