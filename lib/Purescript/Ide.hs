@@ -5,22 +5,41 @@ module Purescript.Ide
     readExternFile,
     findTypeForName,
     findCompletion,
+    loadModule,
+    printModules,
+    unsafeModuleFromDecls,
     ExternParse,
-    ExternDecl
+    ExternDecl,
+    PscIde,
+    PscState(..)
   ) where
 
-
-import           Data.Char        (digitToInt)
+import           Control.Monad.State.Lazy (StateT (..), evalStateT, get, modify)
+import           Control.Monad.Trans
+import           Data.Char                (digitToInt)
 import           Data.Foldable
-import           Data.Maybe       (mapMaybe)
+import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
-import           Data.Text        (Text ())
-import qualified Data.Text        as T
-import qualified Data.Text.IO     as T
+import           Data.Text                (Text ())
+import qualified Data.Text                as T
+import qualified Data.Text.IO             as T
 import           Text.Parsec
 import           Text.Parsec.Text
 
 type ExternParse = Either ParseError [ExternDecl]
+
+data Module = Module
+    { moduleName  :: Text
+    , moduleDecls :: [ExternDecl]
+    } deriving (Show,Eq)
+
+
+data PscState = PscState
+    { pscStateModules :: [Module]
+    } deriving (Show,Eq)
+
+
+type PscIde = StateT PscState IO
 
 data Fixity = Infix | Infixl | Infixr deriving(Show, Eq)
 
@@ -31,17 +50,22 @@ data ExternDecl
                         Int
                         Text
     | Dependency { dependencyModule :: Text
-                 , dependencyNames :: Text}
+                 , dependencyNames  :: Text}
     | ModuleDecl Text
                  [Text]
     | DataDecl Text
                Text
     deriving (Show,Eq)
 
+getAllDecls :: PscIde [ExternDecl]
+getAllDecls = return . concat . fmap moduleDecls =<< fmap pscStateModules get
+
 -- | Given a set of ExternDeclarations finds the type for a given function
 --   name and returns Nothing if the functionName can not be matched
-findTypeForName :: [ExternDecl] -> Text -> Maybe Text
-findTypeForName decls search = getFirst $ fold (map (First . go) decls)
+findTypeForName :: Text -> PscIde (Maybe Text)
+findTypeForName search = do
+  decls <- getAllDecls
+  return $ getFirst $ fold (map (First . go) decls)
   where
     go :: ExternDecl -> Maybe Text
     go decl =
@@ -54,8 +78,8 @@ findTypeForName decls search = getFirst $ fold (map (First . go) decls)
 
 -- | Given a set of ExternDeclarations finds all the possible completions.
 --   Doesn't do any fancy flex matching. Just prefix search
-findCompletion :: [ExternDecl] -> Text -> [Text]
-findCompletion decls stub = mapMaybe go decls
+findCompletion :: Text -> PscIde [Text]
+findCompletion stub = fmap (mapMaybe go) getAllDecls
   where
     matches name =
         if stub `T.isPrefixOf` name
@@ -66,6 +90,24 @@ findCompletion decls stub = mapMaybe go decls
     go (DataDecl name _) = matches name
     go _ = Nothing
 
+loadModule :: FilePath -> PscIde ()
+loadModule fp = do
+    parseResult <- liftIO $ readExternFile fp
+    case parseResult of
+        Right decls ->
+            modify
+                (\x ->
+                      x
+                      { pscStateModules = unsafeModuleFromDecls decls :
+                        pscStateModules x
+                      })
+        Left _ -> return ()
+
+unsafeModuleFromDecls :: [ExternDecl] -> Module
+unsafeModuleFromDecls (ModuleDecl name _ : decls) = Module name decls
+
+printModules :: PscIde ()
+printModules = liftIO . print . fmap moduleName . pscStateModules =<< get
 
 -- | Parses an extern file into the ExternDecl format.
 readExternFile :: FilePath -> IO ExternParse
@@ -82,7 +124,7 @@ removeComments = filter (not . T.isPrefixOf "--")
 parseExternDecl :: Parser ExternDecl
 parseExternDecl =
     try parseDependency <|> try parseFixityDecl <|> try parseFunctionDecl <|>
-    try parseDataDecl <|>
+    try parseDataDecl <|> try parseModuleDecl <|>
     return (ModuleDecl "" [])
 
 parseDependency :: Parser ExternDecl
@@ -134,13 +176,20 @@ parseDataDecl = do
   eof
   return $ DataDecl (T.pack name) (T.pack kind)
 
+parseModuleDecl :: Parser ExternDecl
+parseModuleDecl = do
+  string "module"
+  spaces
+  name <- many1 (noneOf " ")
+  return (ModuleDecl (T.pack name) [])
+
 -- Utilities for testing in ghci
 findTypeForName' :: Text -> IO (Maybe Text)
 findTypeForName' search = do
     exts <- externsFile
     case exts of
         Left x -> print x >> return Nothing
-        Right decls -> return $ findTypeForName decls search
+        Right decls -> evalStateT (findTypeForName search) (PscState [])
 
 externsFile :: IO (Either ParseError [ExternDecl])
 externsFile = readExternFile "/home/creek/sandbox/psc-ide/externs.purs"
