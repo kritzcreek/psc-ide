@@ -18,7 +18,7 @@ where externs.purs is the Data.Array module externs file.
 
 ## Installing and Building
 
-The project is set up to be built using the [stack]() tool.
+The project is set up to be built using the [stack](https://github.com/commercialhaskell/stack) tool.
 
 Usage:
 ```bash
