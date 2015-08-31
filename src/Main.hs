@@ -15,7 +15,6 @@ options =
         (strArgument
              (metavar "FILE" <> help "Extern File to use for searching"))
 
-
 main :: IO ()
 main = execParser opts >>= pscIde
   where
@@ -28,10 +27,16 @@ main = execParser opts >>= pscIde
 pscIde :: Options -> IO ()
 pscIde opts = do
     exts <- readExts (externs opts)
-    putStrLn "Insert the function name to look for:"
-    fname <- T.getLine
-    print $ findTypeForName <$> exts <*> pure fname
-
+    case exts of
+        Right exts' -> do
+            putStrLn "Insert the function name to look for:"
+            fname <- T.getLine
+            putStrLn $
+                maybe "No function found." show (findTypeForName exts' fname)
+        Left err ->
+            print $
+            "There was an error when trying to parse the extern files: " <>
+            show err
 
 readExts :: [FilePath] -> IO ExternParse
 readExts fps = do
