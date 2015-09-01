@@ -14,7 +14,7 @@ data Options = Options
 options :: Parser Options
 options =
     Options <$>
-    some
+    many
         (strArgument
              (metavar "FILE" <> help "Extern File to use for searching"))
 

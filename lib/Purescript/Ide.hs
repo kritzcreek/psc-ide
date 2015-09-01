@@ -101,7 +101,7 @@ loadModule fp = do
                       { pscStateModules = unsafeModuleFromDecls decls :
                         pscStateModules x
                       })
-        Left _ -> return ()
+        Left _ -> liftIO $ putStrLn "The module could not be parsed"
 
 unsafeModuleFromDecls :: [ExternDecl] -> Module
 unsafeModuleFromDecls (ModuleDecl name _ : decls) = Module name decls
