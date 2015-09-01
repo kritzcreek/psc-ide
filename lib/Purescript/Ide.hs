@@ -7,7 +7,7 @@ module Purescript.Ide
     findCompletion,
     loadModule,
     printModules,
-    unsafeModuleFromDecls,
+    unsafeStateFromDecls,
     ExternParse,
     ExternDecl,
     PscIde,
@@ -18,6 +18,7 @@ import           Control.Monad.State.Lazy (StateT (..), evalStateT, get, modify)
 import           Control.Monad.Trans
 import           Data.Char                (digitToInt)
 import           Data.Foldable
+import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
 import           Data.Text                (Text ())
@@ -28,14 +29,11 @@ import           Text.Parsec.Text
 
 type ExternParse = Either ParseError [ExternDecl]
 
-data Module = Module
-    { moduleName  :: Text
-    , moduleDecls :: [ExternDecl]
-    } deriving (Show,Eq)
+type Module = (Text, [ExternDecl])
 
 
 data PscState = PscState
-    { pscStateModules :: [Module]
+    { pscStateModules :: M.Map Text [ExternDecl]
     } deriving (Show,Eq)
 
 
@@ -58,7 +56,7 @@ data ExternDecl
     deriving (Show,Eq)
 
 getAllDecls :: PscIde [ExternDecl]
-getAllDecls = return . concat . fmap moduleDecls =<< fmap pscStateModules get
+getAllDecls = return . concat =<< fmap pscStateModules get
 
 -- | Given a set of ExternDeclarations finds the type for a given function
 --   name and returns Nothing if the functionName can not be matched
@@ -95,19 +93,25 @@ loadModule fp = do
     parseResult <- liftIO $ readExternFile fp
     case parseResult of
         Right decls ->
-            modify
-                (\x ->
-                      x
-                      { pscStateModules = unsafeModuleFromDecls decls :
-                        pscStateModules x
-                      })
+            let (name, decls') = unsafeModuleFromDecls decls
+            in modify
+                   (\x ->
+                         x
+                         { pscStateModules = M.insert
+                               name
+                               decls'
+                               (pscStateModules x)
+                         })
         Left _ -> liftIO $ putStrLn "The module could not be parsed"
 
 unsafeModuleFromDecls :: [ExternDecl] -> Module
-unsafeModuleFromDecls (ModuleDecl name _ : decls) = Module name decls
+unsafeModuleFromDecls (ModuleDecl name _ : decls) = (name, decls)
+
+unsafeStateFromDecls :: [[ExternDecl]] -> PscState
+unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
 
 printModules :: PscIde ()
-printModules = liftIO . print . fmap moduleName . pscStateModules =<< get
+printModules = liftIO . print . M.keys . pscStateModules =<< get
 
 -- | Parses an extern file into the ExternDecl format.
 readExternFile :: FilePath -> IO ExternParse
@@ -189,7 +193,7 @@ findTypeForName' search = do
     exts <- externsFile
     case exts of
         Left x -> print x >> return Nothing
-        Right decls -> evalStateT (findTypeForName search) (PscState [])
+        Right _ -> evalStateT (findTypeForName search) (PscState M.empty)
 
 externsFile :: IO (Either ParseError [ExternDecl])
 externsFile = readExternFile "/home/creek/sandbox/psc-ide/externs.purs"

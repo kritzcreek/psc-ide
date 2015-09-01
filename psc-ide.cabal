@@ -20,6 +20,7 @@ library
                        , text
                        , parsec
                        , mtl
+                       , containers
   default-extensions:    OverloadedStrings
 
 executable psc-ide

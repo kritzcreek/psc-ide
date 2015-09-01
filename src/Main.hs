@@ -41,7 +41,7 @@ repl :: [[ExternDecl]] -> IO ()
 repl decls =
     evalStateT
         (forever (liftIO getLine >>= interpret))
-        (PscState (map unsafeModuleFromDecls decls))
+        (unsafeStateFromDecls decls)
   where
     interpret :: String -> PscIde ()
     interpret "typeLookup" = do
