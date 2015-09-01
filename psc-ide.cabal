@@ -32,3 +32,15 @@ executable psc-ide
                      , mtl
                      , text
                      , optparse-applicative
+                     , network
+
+executable psc-ide-server
+  hs-source-dirs:      server
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  ghc-options:         -threaded
+  build-depends:       base >= 4.7 && < 5
+                     , psc-ide
+                     , text
+                     , network
+                     , mtl

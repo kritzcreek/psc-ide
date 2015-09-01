@@ -2,16 +2,19 @@
 
 module Purescript.Ide
   (
+    emptyPscState,
     readExternFile,
     findTypeForName,
     findCompletion,
     loadModule,
     printModules,
+    parseCommand,
     unsafeStateFromDecls,
     ExternParse,
     ExternDecl,
     PscIde,
-    PscState(..)
+    PscState(..),
+    Command(..)
   ) where
 
 import           Control.Monad.State.Lazy (StateT (..), evalStateT, get, modify)
@@ -35,6 +38,9 @@ type Module = (Text, [ExternDecl])
 data PscState = PscState
     { pscStateModules :: M.Map Text [ExternDecl]
     } deriving (Show,Eq)
+
+emptyPscState :: PscState
+emptyPscState = PscState M.empty
 
 
 type PscIde = StateT PscState IO
@@ -110,8 +116,8 @@ unsafeModuleFromDecls (ModuleDecl name _ : decls) = (name, decls)
 unsafeStateFromDecls :: [[ExternDecl]] -> PscState
 unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
 
-printModules :: PscIde ()
-printModules = liftIO . print . M.keys . pscStateModules =<< get
+printModules :: PscIde [Text]
+printModules = return . M.keys . pscStateModules =<< get
 
 -- | Parses an extern file into the ExternDecl format.
 readExternFile :: FilePath -> IO ExternParse
@@ -187,13 +193,40 @@ parseModuleDecl = do
   name <- many1 (noneOf " ")
   return (ModuleDecl (T.pack name) [])
 
--- Utilities for testing in ghci
-findTypeForName' :: Text -> IO (Maybe Text)
-findTypeForName' search = do
-    exts <- externsFile
-    case exts of
-        Left x -> print x >> return Nothing
-        Right _ -> evalStateT (findTypeForName search) (PscState M.empty)
+data Command =
+  TypeLookup Text
+  | Completion Text
+  | Load FilePath
+  | Print
+  | Quit
+    deriving(Show, Eq)
 
-externsFile :: IO (Either ParseError [ExternDecl])
-externsFile = readExternFile "/home/creek/sandbox/psc-ide/externs.purs"
+parseCommand :: Text -> Either ParseError Command
+parseCommand = parse parseCommand' ""
+
+parseCommand' :: Parser Command
+parseCommand' =
+    parseTypeLookup <|> parseCompletion <|> parseLoad <|>
+    (string "print" >> return Print) <|>
+    (string "quit" >> return Quit)
+
+parseTypeLookup :: Parser Command
+parseTypeLookup = do
+    string "typeLookup"
+    spaces
+    ident <- many1 anyChar
+    return (TypeLookup (T.pack ident))
+
+parseCompletion :: Parser Command
+parseCompletion = do
+    string "completion"
+    spaces
+    stub <- many1 anyChar
+    return (Completion (T.pack stub))
+
+parseLoad :: Parser Command
+parseLoad = do
+    string "load"
+    spaces
+    module' <- many1 anyChar
+    return (Load module')
