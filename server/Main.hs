@@ -13,6 +13,7 @@ import           Options.Applicative
 import           Purescript.Ide
 import           System.Directory
 import           System.Exit
+import           System.FilePath
 import           System.IO
 
 -- Copied from upstream impl of listenOn
@@ -72,6 +73,20 @@ startServer port st_in =
 handleCommand :: Command -> PscIde T.Text
 handleCommand (TypeLookup ident) = fromMaybe "Not found" <$> findTypeForName ident
 handleCommand (Completion stub) = T.intercalate ", " <$> findCompletion stub
-handleCommand (Load fp) = loadModule fp >> return "Success"
+handleCommand (Load moduleName) = do
+  path <- liftIO $ filePathFromModule moduleName
+  case path of
+    Right p -> loadModule p >> return "Success"
+    Left err -> return err
 handleCommand Print = T.intercalate ", " <$> printModules
 handleCommand Quit = liftIO exitSuccess
+
+filePathFromModule :: T.Text -> IO (Either T.Text FilePath)
+filePathFromModule moduleName = do
+    cwd <- getCurrentDirectory
+    let path = cwd </> "output" </> T.unpack moduleName </> "externs.purs"
+    ex <- doesFileExist path
+    return $
+        if ex
+            then Right path
+            else Left "Module could not be found"
