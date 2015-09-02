@@ -43,4 +43,6 @@ executable psc-ide-server
                      , psc-ide
                      , text
                      , network
+                     , optparse-applicative
                      , mtl
+                     , directory

@@ -1,8 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Purescript.Ide
-
 import           Control.Exception        (bracketOnError)
 import           Control.Monad.State.Lazy
 import           Data.Maybe               (fromMaybe)
@@ -11,7 +9,9 @@ import qualified Data.Text.IO             as T
 import           Network                  hiding (socketPort)
 import           Network.BSD              (getProtocolNumber)
 import           Network.Socket           hiding (PortNumber, accept, sClose)
-
+import           Options.Applicative
+import           Purescript.Ide
+import           System.Directory
 import           System.Exit
 import           System.IO
 
@@ -30,8 +30,23 @@ listenOnLocalhost (PortNumber port) = do
                  listen sock maxListenQueue
                  return sock)
 
+data Options = Options
+    { optionsDirectory :: Maybe FilePath
+    , optionsPort      :: Maybe Int
+    }
+
 main :: IO ()
-main = startServer (PortNumber 4242) emptyPscState
+main = do
+    Options dir port <- execParser opts
+    maybe (return ()) setCurrentDirectory dir
+    startServer (PortNumber . fromIntegral $ fromMaybe 4242 port) emptyPscState
+  where
+    parser =
+        Options <$>
+          optional (strOption (long "directory" <> short 'd')) <*>
+          optional (option auto (long "port" <> short 'p'))
+    opts = info parser mempty
+
 
 startServer :: PortID -> PscState -> IO ()
 startServer port st_in =
@@ -44,15 +59,14 @@ startServer port st_in =
         hSetEncoding h utf8
         cmd <- T.hGetLine h
         return (cmd, h)
-
     loop :: Socket -> PscIde ()
     loop sock = do
-        (cmd, h) <- liftIO $ acceptCommand sock
+        (cmd,h) <- liftIO $ acceptCommand sock
         case parseCommand cmd of
-          Right cmd' -> do
-            result <- handleCommand cmd'
-            liftIO $ T.hPutStrLn h result
-          Left err -> liftIO $ hPrint h err
+            Right cmd' -> do
+                result <- handleCommand cmd'
+                liftIO $ T.hPutStrLn h result
+            Left err -> liftIO $ hPrint h err
         liftIO $ hClose h
 
 handleCommand :: Command -> PscIde T.Text
