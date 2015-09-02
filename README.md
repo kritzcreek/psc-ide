@@ -7,16 +7,18 @@ Looks to support type lookup, function lookup, autocomplete, etc.
 
 ## Supported Commands
 
-After you started the server with `psc-ide-server` you can run the following commands.
-Make sure you start by loading the externs.purs files before you try to query them.
+After you started the server with `psc-ide-server` you can run the following
+commands. Make sure you start by loading the modules before you try to query
+them.
 
-You can find the extern files for the load command inside the `output/` folder of your project after
-running `pulp build` or `psc-make` respectively.
+psc-ide expects the build externs.purs inside the `output/` folder of your
+project after running `pulp build` or `psc-make` respectively.
 
-### Loading extern.purs files:
+### Loading Modules (expects `/output` to be your build folder):
 
  ```
- echo "load ./externs.purs" | psc-ide
+ echo "load Data.Array" | psc-ide
+ "Success"
  ```
 
 ### Type lookup for functions in the loaded modules:

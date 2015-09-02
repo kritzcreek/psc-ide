@@ -17,7 +17,7 @@ module Purescript.Ide
     Command(..)
   ) where
 
-import           Control.Monad.State.Lazy (StateT (..), evalStateT, get, modify)
+import           Control.Monad.State.Lazy (StateT (..), get, modify)
 import           Control.Monad.Trans
 import           Data.Char                (digitToInt)
 import           Data.Foldable
@@ -196,7 +196,7 @@ parseModuleDecl = do
 data Command =
   TypeLookup Text
   | Completion Text
-  | Load FilePath
+  | Load Text
   | Print
   | Quit
     deriving(Show, Eq)
@@ -229,4 +229,4 @@ parseLoad = do
     string "load"
     spaces
     module' <- many1 anyChar
-    return (Load module')
+    return (Load (T.pack module'))

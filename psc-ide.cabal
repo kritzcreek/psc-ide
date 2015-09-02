@@ -46,3 +46,4 @@ executable psc-ide-server
                      , optparse-applicative
                      , mtl
                      , directory
+                     , filepath
