@@ -64,3 +64,10 @@ stack exec -- psc-ide-server &
 stack exec -- psc-ide
 ```
 
+## Testing
+
+The testsuite can be run with `stack test`.
+If you make changes to the tests stack won't notice them so you need to
+do `stack clean && stack install` to rebuild the tests. 
+
+
