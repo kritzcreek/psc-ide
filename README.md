@@ -5,6 +5,10 @@ Aims to provide editor support for the PureScript language.
 
 Looks to support type lookup, function lookup, autocomplete, etc.
 
+## Emacs Integration
+[@epost](https://github.com/epost) wrote a plugin to integrate psc-ide with Emacs at https://github.com/epost/psc-ide-emacs.
+
+
 ## Supported Commands
 
 After you started the server with `psc-ide-server` you can run the following
