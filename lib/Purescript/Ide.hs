@@ -203,7 +203,7 @@ data Command =
     deriving(Show, Eq)
 
 parseCommand :: Text -> Either ParseError Command
-parseCommand = parse parseCommand' ""
+parseCommand text = parse parseCommand' ("Failed to parse command '" ++ T.unpack text ++ "'") text
 
 parseCommand' :: Parser Command
 parseCommand' =
