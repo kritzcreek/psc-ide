@@ -1,13 +1,13 @@
 name:                psc-ide
 version:             0.1.0.0
-synopsis:            Simple project template from stack
+synopsis:            Language support for the PureScript programming language
 description:         Please see README.md
-homepage:            http://github.com/githubuser/psc-ide#readme
+homepage:            http://github.com/kRITZCREEK/psc-ide#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Example Author Name
-maintainer:          example@example.com
-copyright:           2010 Author Here
+author:              Christoph Hegemann
+maintainer:          christoph.hegemann@gmx.net
+copyright:           2015 Christoph Hegemann
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
@@ -47,3 +47,12 @@ executable psc-ide-server
                      , mtl
                      , directory
                      , filepath
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  ghc-options: -Wall
+  hs-source-dirs: test
+  main-is: Spec.hs
+  build-depends: base    >= 4.7 && < 5
+               , psc-ide
+               , hspec
