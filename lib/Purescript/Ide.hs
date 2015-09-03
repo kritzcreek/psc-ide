@@ -221,7 +221,7 @@ parseTypeLookup = do
 
 parseCompletion :: Parser Command
 parseCompletion = do
-    string "completion"
+    string "complete"
     spaces
     stub <- many1 anyChar
     return (Completion (T.pack stub))

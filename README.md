@@ -35,7 +35,7 @@ project after running `pulp build` or `psc-make` respectively.
 ### Completion across the loaded modules:
 
  ```
- echo "completion fil" | psc-ide
+ echo "complete fil" | psc-ide
  "filter", "filterM"
  ```
 
