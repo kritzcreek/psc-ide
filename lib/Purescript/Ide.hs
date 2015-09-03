@@ -208,9 +208,9 @@ parseCommand = parse parseCommand' ""
 parseCommand' :: Parser Command
 parseCommand' =
     (string "print" >> return Print) <|>
-    (string "cwd" >> return Cwd) <|>
+    try (string "cwd" >> return Cwd) <|>
     (string "quit" >> return Quit) <|>
-    parseTypeLookup <|> parseCompletion <|> parseLoad
+    parseTypeLookup <|> try parseCompletion <|> parseLoad
 
 parseTypeLookup :: Parser Command
 parseTypeLookup = do
