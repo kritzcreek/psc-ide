@@ -79,6 +79,7 @@ handleCommand (Load moduleName) = do
     Right p -> loadModule p >> return "Success"
     Left err -> return err
 handleCommand Print = T.intercalate ", " <$> printModules
+handleCommand Cwd = liftIO (T.pack <$> getCurrentDirectory)
 handleCommand Quit = liftIO exitSuccess
 
 filePathFromModule :: T.Text -> IO (Either T.Text FilePath)

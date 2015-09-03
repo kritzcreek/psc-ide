@@ -198,6 +198,7 @@ data Command =
   | Completion Text
   | Load Text
   | Print
+  | Cwd
   | Quit
     deriving(Show, Eq)
 
@@ -206,9 +207,10 @@ parseCommand = parse parseCommand' ""
 
 parseCommand' :: Parser Command
 parseCommand' =
-    parseTypeLookup <|> parseCompletion <|> parseLoad <|>
     (string "print" >> return Print) <|>
-    (string "quit" >> return Quit)
+    try (string "cwd" >> return Cwd) <|>
+    (string "quit" >> return Quit) <|>
+    parseTypeLookup <|> try parseCompletion <|> parseLoad
 
 parseTypeLookup :: Parser Command
 parseTypeLookup = do
