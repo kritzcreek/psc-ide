@@ -20,6 +20,6 @@ spec = do
     it "parses a type lookup command" $
       parseCommand "typeLookup ident" `shouldBe` Right (TypeLookup "ident")
     it "parses a completion command" $
-      parseCommand "completion stub" `shouldBe` Right (Completion "stub")
+      parseCommand "complete stub" `shouldBe` Right (Completion "stub")
     it "fails to parse a malformed command" $
       parseCommand "compasd asd" `shouldSatisfy` isLeft
