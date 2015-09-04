@@ -17,12 +17,14 @@ library
   exposed-modules:       Purescript.Ide
                        , Purescript.Ide.Command
                        , Purescript.Ide.Externs
+                       , Purescript.Ide.CodecJSON
   default-language:      Haskell2010
   build-depends:         base >= 4.7 && < 5
                        , text
                        , parsec
                        , mtl
                        , containers
+                       , aeson
   default-extensions:    OverloadedStrings
 
 executable psc-ide
@@ -49,6 +51,7 @@ executable psc-ide-server
                      , mtl
                      , directory
                      , filepath
+                     , aeson
 
 test-suite spec
   type:                exitcode-stdio-1.0
