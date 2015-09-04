@@ -1,5 +1,6 @@
 module Purescript.Codec.JSON where
 
+import Purescript.Ide (ExternDecl(..))
 import Data.Aeson
 
 instance ToJSON ExternDecl where
@@ -7,4 +8,4 @@ instance ToJSON ExternDecl where
   toJSON (ModuleDecl   n t)        = object ["name" .= n, "type" .= t]
   toJSON (DataDecl     n t)        = object ["name" .= n, "type" .= t]
   toJSON (Dependency   n names)    = object ["module" .= n, "names" .= names]
-  toJSON (FixityDeclaration p i n) = object ["name" .= n, "fixity" .= show f, "precedence" .= p]
+  toJSON (FixityDeclaration f p n) = object ["name" .= n, "fixity" .= show f, "precedence" .= p]

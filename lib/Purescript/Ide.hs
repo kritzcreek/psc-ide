@@ -11,7 +11,7 @@ module Purescript.Ide
     parseCommand,
     unsafeStateFromDecls,
     ExternParse,
-    ExternDecl,
+    ExternDecl(..),
     PscIde,
     PscState(..),
     Command(..)
