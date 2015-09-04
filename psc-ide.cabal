@@ -15,12 +15,16 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:        lib
   exposed-modules:       Purescript.Ide
+                       , Purescript.Ide.Command
+                       , Purescript.Ide.Externs
+                       , Purescript.Ide.CodecJSON
   default-language:      Haskell2010
   build-depends:         base >= 4.7 && < 5
                        , text
                        , parsec
                        , mtl
                        , containers
+                       , aeson
   default-extensions:    OverloadedStrings
 
 executable psc-ide
@@ -50,10 +54,12 @@ executable psc-ide-server
                      , aeson
 
 test-suite spec
-  type: exitcode-stdio-1.0
-  ghc-options: -Wall
-  hs-source-dirs: test
-  main-is: Spec.hs
-  build-depends: base    >= 4.7 && < 5
-               , psc-ide
-               , hspec
+  type:                exitcode-stdio-1.0
+  ghc-options:         -Wall
+  hs-source-dirs:      test
+  default-language:    Haskell2010
+  main-is:             Spec.hs
+  other-modules:       Purescript.Ide.CommandSpec
+  build-depends:       base    >= 4.7 && < 5
+                     , psc-ide
+                     , hspec

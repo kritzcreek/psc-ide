@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Purescript.IdeSpec where
+module Purescript.Ide.CommandSpec where
 
-import Data.Either (isLeft)
-import Test.Hspec
-import Purescript.Ide
+import           Data.Either    (isLeft)
+import           Purescript.Ide.Command
+import           Test.Hspec
 
 spec :: Spec
 spec = do
