@@ -1,18 +1,26 @@
-module Purescript.Ide.Command (parseCommand, Command (..)) where
+{-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
+module Purescript.Ide.Command
+       (parseCommand, Command(..), Level(..)) where
 
 import           Data.Text        (Text)
 import qualified Data.Text        as T
 import           Text.Parsec
 import           Text.Parsec.Text
 
-data Command =
-  TypeLookup Text
-  | Completion Text
-  | Load Text
-  | Print
-  | Cwd
-  | Quit
-    deriving(Show, Eq)
+data Level
+    = File
+    | Project
+    | Pursuit
+    deriving (Show,Eq)
+
+data Command
+    = TypeLookup Text
+    | Complete Text Level
+    | Load Text
+    | Print
+    | Cwd
+    | Quit
+    deriving (Show,Eq)
 
 parseCommand :: Text -> Either ParseError Command
 parseCommand = parse parseCommand' ""
@@ -22,7 +30,7 @@ parseCommand' =
     (string "print" >> return Print) <|>
     try (string "cwd" >> return Cwd) <|>
     (string "quit" >> return Quit) <|>
-    parseTypeLookup <|> try parseCompletion <|> parseLoad
+    parseTypeLookup <|> try parseComplete <|> parseLoad
 
 parseTypeLookup :: Parser Command
 parseTypeLookup = do
@@ -31,12 +39,14 @@ parseTypeLookup = do
     ident <- many1 anyChar
     return (TypeLookup (T.pack ident))
 
-parseCompletion :: Parser Command
-parseCompletion = do
+parseComplete :: Parser Command
+parseComplete = do
     string "complete"
     spaces
-    stub <- many1 anyChar
-    return (Completion (T.pack stub))
+    stub <- many1 (noneOf " ")
+    spaces
+    level <- parseLevel
+    return (Complete (T.pack stub) level)
 
 parseLoad :: Parser Command
 parseLoad = do
@@ -44,3 +54,9 @@ parseLoad = do
     spaces
     module' <- many1 anyChar
     return (Load (T.pack module'))
+
+parseLevel :: Parser Level
+parseLevel =
+    (string "File" >> return File) <|>
+    (try (string "Project") >> return Project) <|>
+    (string "Pursuit" >> return Pursuit)
