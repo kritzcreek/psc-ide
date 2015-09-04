@@ -47,6 +47,7 @@ executable psc-ide-server
                      , mtl
                      , directory
                      , filepath
+                     , aeson
 
 test-suite spec
   type: exitcode-stdio-1.0
