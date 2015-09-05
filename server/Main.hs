@@ -73,7 +73,7 @@ startServer port st_in =
 
 handleCommand :: Command -> PscIde T.Text
 handleCommand (TypeLookup ident) = fromMaybe "Not found" <$> findTypeForName ident
-handleCommand (Completion stub) = T.intercalate ", " <$> findCompletion stub
+handleCommand (Complete stub level) = T.intercalate ", " <$> findCompletion stub level
 handleCommand (Load moduleName) = do
   path <- liftIO $ filePathFromModule moduleName
   case path of

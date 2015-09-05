@@ -8,15 +8,24 @@ Looks to support type lookup, function lookup, autocomplete, etc.
 ## Emacs Integration
 [@epost](https://github.com/epost) wrote a plugin to integrate psc-ide with Emacs at https://github.com/epost/psc-ide-emacs.
 
+## Running the Server
+Start the server by running the `psc-ide-server` executable.
+It supports the following options:
+
+- `-p / --port` specify a port. Defaults to 4242
+- `-d / --directory` specify the toplevel directory of your project. Defaults to
+  the current directory
 
 ## Supported Commands
 
-After you started the server with `psc-ide-server` you can run the following
-commands. Make sure you start by loading the modules before you try to query
-them.
+After you started the server you can run the following commands. Make sure you
+start by loading the modules before you try to query them.
 
 psc-ide expects the build externs.purs inside the `output/` folder of your
 project after running `pulp build` or `psc-make` respectively.
+
+(If you changed the port of the server you can change the port for psc-ide by
+using the -p option accordingly)
 
 ### Loading Modules (expects `/output` to be your build folder):
 
@@ -35,9 +44,16 @@ project after running `pulp build` or `psc-make` respectively.
 ### Completion across the loaded modules:
 
  ```
- echo "complete fil" | psc-ide
+ echo "complete fil Project" | psc-ide
  "filter", "filterM"
  ```
+
+### Completions from Pursuit:
+
+```
+echo "complete trav Pursuit" | psc -ide
+"traverse, traverse_, bitraverse, bitraverse_, cotraverse"
+```
 
 ### Printing the loaded modules:
 

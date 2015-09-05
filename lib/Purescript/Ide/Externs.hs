@@ -1,11 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
+
 module Purescript.Ide.Externs
   (
     ExternParse,
     ExternDecl(..),
     Fixity(..),
     readExternFile,
-    parseExternDecl
+    parseExternDecl,
+    typeParse
   ) where
 
 import           Data.Char        (digitToInt)
@@ -80,11 +83,7 @@ parseFunctionDecl :: Parser ExternDecl
 parseFunctionDecl = do
     string "foreign import"
     spaces
-    name <- many1 (noneOf " ")
-    spaces
-    string "::"
-    spaces
-    type' <- many1 anyChar
+    (name, type') <- parseType
     eof
     return (FunctionDecl (T.pack name) (T.pack type'))
 
@@ -92,11 +91,7 @@ parseDataDecl :: Parser ExternDecl
 parseDataDecl = do
   string "foreign import data"
   spaces
-  name <- many1 (noneOf " ")
-  spaces
-  string "::"
-  spaces
-  kind <- many1 anyChar
+  (name, kind) <- parseType
   eof
   return $ DataDecl (T.pack name) (T.pack kind)
 
@@ -106,3 +101,17 @@ parseModuleDecl = do
   spaces
   name <- many1 (noneOf " ")
   return (ModuleDecl (T.pack name) [])
+
+parseType :: Parser (String, String)
+parseType = do
+  name <- many1 (noneOf " ")
+  spaces
+  string "::"
+  spaces
+  type' <- many1 anyChar
+  return (name, type')
+
+typeParse :: Text -> Either Text (Text, Text)
+typeParse t = case parse parseType "" t of
+  Right (x,y) -> Right (T.pack x, T.pack y)
+  Left err -> Left (T.pack (show err))

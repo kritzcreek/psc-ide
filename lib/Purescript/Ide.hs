@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
 module Purescript.Ide
   (
@@ -12,6 +12,7 @@ module Purescript.Ide
     PscState(..),
   ) where
 
+import           Control.Monad
 import           Control.Monad.State.Lazy (StateT (..), get, modify)
 import           Control.Monad.Trans
 import           Data.Foldable
@@ -20,7 +21,9 @@ import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
 import           Data.Text                (Text ())
 import qualified Data.Text                as T
+import           Purescript.Ide.Command
 import           Purescript.Ide.Externs
+import           Purescript.Ide.Pursuit
 
 type Module = (Text, [ExternDecl])
 
@@ -54,9 +57,13 @@ findTypeForName search = do
 
 -- | Given a set of ExternDeclarations finds all the possible completions.
 --   Doesn't do any fancy flex matching. Just prefix search
-findCompletion :: Text -> PscIde [Text]
-findCompletion stub = fmap (mapMaybe go) getAllDecls
+findCompletion :: Text -> Level -> PscIde [Text]
+findCompletion stub level
+  | level == File || level == Project = fileMatches
+  | level == Pursuit = liftM2 mappend fileMatches pursuitMatches
   where
+    fileMatches = fmap (mapMaybe go) getAllDecls
+    pursuitMatches = liftIO $ liftM (fmap fst) (searchPursuit stub)
     matches name =
         if stub `T.isPrefixOf` name
             then Just name
@@ -84,6 +91,8 @@ loadModule fp = do
 
 unsafeModuleFromDecls :: [ExternDecl] -> Module
 unsafeModuleFromDecls (ModuleDecl name _ : decls) = (name, decls)
+unsafeModuleFromDecls _ =
+    error "An externs File didn't start with a module declaration"
 
 unsafeStateFromDecls :: [[ExternDecl]] -> PscState
 unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
