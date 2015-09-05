@@ -1,9 +1,9 @@
 psc-ide
 ===
 
-Aims to provide editor support for the PureScript language.
+A tool which provides editor support for the PureScript language.
 
-Looks to support type lookup, function lookup, autocomplete, etc.
+[![Build Status](https://travis-ci.org/kRITZCREEK/psc-ide.svg?branch=travis-build)](https://travis-ci.org/kRITZCREEK/psc-ide)
 
 ## Emacs Integration
 [@epost](https://github.com/epost) wrote a plugin to integrate psc-ide with Emacs at https://github.com/epost/psc-ide-emacs.
