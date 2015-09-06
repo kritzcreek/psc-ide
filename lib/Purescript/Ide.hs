@@ -5,7 +5,8 @@ module Purescript.Ide
     emptyPscState,
     findTypeForName,
     findCompletion,
-    loadModule,
+    loadExtern,
+    getDependenciesForModule,
     printModules,
     unsafeStateFromDecls,
     PscIde,
@@ -73,8 +74,8 @@ findCompletion stub level
     go (DataDecl name _) = matches name
     go _ = Nothing
 
-loadModule :: FilePath -> PscIde ()
-loadModule fp = do
+loadExtern :: FilePath -> PscIde ()
+loadExtern fp = do
     parseResult <- liftIO $ readExternFile fp
     case parseResult of
         Right decls ->
@@ -88,6 +89,13 @@ loadModule fp = do
                                (pscStateModules x)
                          })
         Left _ -> liftIO $ putStrLn "The module could not be parsed"
+
+getDependenciesForModule :: Text -> PscIde (Maybe [Text])
+getDependenciesForModule m = do
+  mDecls <- M.lookup m . pscStateModules <$> get
+  return $ mapMaybe getDependencyName <$> mDecls
+  where getDependencyName (Dependency dependencyName _) = Just dependencyName
+        getDependencyName _ = Nothing
 
 unsafeModuleFromDecls :: [ExternDecl] -> Module
 unsafeModuleFromDecls (ModuleDecl name _ : decls) = (name, decls)

@@ -74,14 +74,26 @@ startServer port st_in =
 handleCommand :: Command -> PscIde T.Text
 handleCommand (TypeLookup ident) = fromMaybe "Not found" <$> findTypeForName ident
 handleCommand (Complete stub level) = T.intercalate ", " <$> findCompletion stub level
-handleCommand (Load moduleName) = do
-  path <- liftIO $ filePathFromModule moduleName
-  case path of
-    Right p -> loadModule p >> return "Success"
-    Left err -> return err
+handleCommand (Load moduleName) = loadModule moduleName
+handleCommand (LoadDependencies moduleName) = do
+    _ <- loadModule moduleName
+    mDeps <- getDependenciesForModule moduleName
+    case mDeps of
+        Just deps -> do
+            mapM_ loadModule deps
+            return ("Dependencies for " <> moduleName <> " loaded.")
+        Nothing -> return "The Module you requested could not be found"
 handleCommand Print = T.intercalate ", " <$> printModules
 handleCommand Cwd = liftIO (T.pack <$> getCurrentDirectory)
 handleCommand Quit = liftIO exitSuccess
+
+loadModule :: T.Text -> PscIde T.Text
+loadModule mn = do
+  path <- liftIO $ filePathFromModule mn
+  case path of
+    Right p -> loadExtern p >> return ("Loaded extern file at: " <> T.pack p)
+    Left err -> return err
+
 
 filePathFromModule :: T.Text -> IO (Either T.Text FilePath)
 filePathFromModule moduleName = do
@@ -91,4 +103,4 @@ filePathFromModule moduleName = do
     return $
         if ex
             then Right path
-            else Left "Module could not be found"
+            else Left ("Extern file for module " <> moduleName <>" could not be found")

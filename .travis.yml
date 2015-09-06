@@ -13,6 +13,7 @@ before_install:
 
 install:
     - stack setup --no-terminal
+    - stack clean
     - stack build --only-snapshot --no-terminal
     - stack test --no-terminal
 

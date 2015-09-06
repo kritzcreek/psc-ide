@@ -11,6 +11,8 @@ spec = do
   describe "Parsing commands" $ do
     it "parses a load command" $
       parseCommand "load Module.Name" `shouldBe` Right (Load "Module.Name")
+    it "parses a dependencies command" $
+      parseCommand "dependencies Module.Name" `shouldBe` Right (LoadDependencies "Module.Name")
     it "parses a print command" $
       parseCommand "print" `shouldBe` Right Print
     it "parses a cwd command" $
