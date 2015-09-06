@@ -17,6 +17,7 @@ data Command
     = TypeLookup Text
     | Complete Text Level
     | Load Text
+    | LoadDependencies Text
     | Print
     | Cwd
     | Quit
@@ -27,10 +28,12 @@ parseCommand = parse parseCommand' ""
 
 parseCommand' :: Parser Command
 parseCommand' =
-    (string "print" >> return Print) <|>
-    try (string "cwd" >> return Cwd) <|>
+    (string "print" >> return Print) <|> try (string "cwd" >> return Cwd) <|>
     (string "quit" >> return Quit) <|>
-    parseTypeLookup <|> try parseComplete <|> parseLoad
+    try parseTypeLookup <|>
+    try parseComplete <|>
+    try parseLoad <|>
+    parseLoadDependencies
 
 parseTypeLookup :: Parser Command
 parseTypeLookup = do
@@ -54,6 +57,13 @@ parseLoad = do
     spaces
     module' <- many1 anyChar
     return (Load (T.pack module'))
+
+parseLoadDependencies :: Parser Command
+parseLoadDependencies = do
+  string "dependencies"
+  spaces
+  module' <- many1 anyChar
+  return (LoadDependencies (T.pack module'))
 
 parseLevel :: Parser Level
 parseLevel =

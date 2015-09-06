@@ -27,11 +27,18 @@ project after running `pulp build` or `psc-make` respectively.
 (If you changed the port of the server you can change the port for psc-ide by
 using the -p option accordingly)
 
-### Loading Modules (expects `/output` to be your build folder):
+### Loading single modules (expects `/output` to be your build folder):
 
  ```
  echo "load Data.Array" | psc-ide
  "Success"
+ ```
+
+### Loading modules including their dependencies:
+
+ ```
+ echo "dependencies Data.Array" | psc-ide
+ "Dependencies for Data.Array loaded."
  ```
 
 ### Type lookup for functions in the loaded modules:
