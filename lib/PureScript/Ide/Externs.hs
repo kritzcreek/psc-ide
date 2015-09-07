@@ -5,6 +5,9 @@ module PureScript.Ide.Externs
   (
     ExternParse,
     ExternDecl(..),
+    ModuleIdent,
+    DeclIdent,
+    Type,
     Fixity(..),
     readExternFile,
     parseExternDecl,
@@ -22,17 +25,21 @@ type ExternParse = Either ParseError [ExternDecl]
 
 data Fixity = Infix | Infixl | Infixr deriving(Show, Eq)
 
+type ModuleIdent = Text
+type DeclIdent   = Text
+type Type        = Text
+
 data ExternDecl
-    = FunctionDecl { functionName :: Text
-                   , functionType :: Text}
+    = FunctionDecl { functionName :: DeclIdent
+                   , functionType :: Type}
     | FixityDeclaration Fixity
                         Int
-                        Text
-    | Dependency { dependencyModule :: Text
+                        DeclIdent
+    | Dependency { dependencyModule :: DeclIdent
                  , dependencyNames  :: Text}
-    | ModuleDecl Text
-                 [Text]
-    | DataDecl Text
+    | ModuleDecl ModuleIdent
+                 [DeclIdent]
+    | DataDecl DeclIdent
                Text
     deriving (Show,Eq)
 
@@ -40,7 +47,7 @@ data ExternDecl
 readExternFile :: FilePath -> IO ExternParse
 readExternFile fp = readExtern <$> (T.lines <$> T.readFile fp)
 
-readExtern:: [Text] -> ExternParse
+readExtern :: [Text] -> ExternParse
 readExtern strs = mapM (parse parseExternDecl "") clean
   where
     clean = removeComments strs

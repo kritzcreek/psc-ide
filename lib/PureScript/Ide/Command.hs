@@ -6,6 +6,7 @@ import           Data.Text        (Text)
 import qualified Data.Text        as T
 import           Text.Parsec
 import           Text.Parsec.Text
+import           PureScript.Ide.Externs (ModuleIdent, DeclIdent)
 
 data Level
     = File
@@ -14,10 +15,10 @@ data Level
     deriving (Show,Eq)
 
 data Command
-    = TypeLookup Text
+    = TypeLookup DeclIdent
     | Complete Text Level
-    | Load Text
-    | LoadDependencies Text
+    | Load ModuleIdent
+    | LoadDependencies ModuleIdent
     | Print
     | Cwd
     | Quit
