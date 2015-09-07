@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Purescript.Ide.Pursuit where
+module PureScript.Ide.Pursuit where
 
 import           Control.Lens
 import           Data.Aeson.Lens
@@ -8,7 +8,7 @@ import           Data.Monoid
 import           Data.Text              (Text)
 import qualified Data.Text              as T
 import           Network.Wreq
-import           Purescript.Ide.Externs (typeParse)
+import           PureScript.Ide.Externs (typeParse)
 
 queryUrl :: Text
 queryUrl = "http://pursuit.purescript.org/search?q="

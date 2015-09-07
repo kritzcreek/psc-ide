@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
-module Purescript.Ide.Externs
+module PureScript.Ide.Externs
   (
     ExternParse,
     ExternDecl(..),

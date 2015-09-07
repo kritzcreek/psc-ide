@@ -1,6 +1,6 @@
-module Purescript.Ide.CodecJSON where
+module PureScript.Ide.CodecJSON where
 
-import Purescript.Ide.Externs (ExternDecl(..))
+import PureScript.Ide.Externs (ExternDecl(..))
 import Data.Aeson
 
 instance ToJSON ExternDecl where
