@@ -15,7 +15,7 @@ main :: IO ()
 main = do
     Options port <- execParser opts
     cmd <- T.getLine
-    client cmd (PortNumber . fromIntegral $ fromMaybe 4242 port) >>= print
+    client cmd (PortNumber . fromIntegral $ fromMaybe 4242 port) >>= putStrLn . T.unpack
   where
     parser = Options <$> optional (option auto (long "port" <> short 'p'))
     opts = info parser mempty

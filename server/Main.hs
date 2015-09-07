@@ -68,12 +68,21 @@ startServer port st_in =
             Right cmd' -> do
                 result <- handleCommand cmd'
                 liftIO $ T.hPutStrLn h result
-            Left err -> liftIO $ hPrint h err
+            Left err ->
+                liftIO $
+                hPutStrLn
+                    h
+                    ("Failed to parse command '" ++
+                     -- show (show err) escapes newlines for us so we can
+                     -- send the error over the socket as a single line
+                     T.unpack cmd ++ "' with error: " ++ show (show err))
         liftIO $ hClose h
 
 handleCommand :: Command -> PscIde T.Text
-handleCommand (TypeLookup ident) = fromMaybe "Not found" <$> findTypeForName ident
-handleCommand (Complete stub level) = T.intercalate ", " <$> findCompletionsByPrefix stub level
+handleCommand (TypeLookup ident) =
+    fromMaybe "Not found" <$> findTypeForName ident
+handleCommand (Complete stub level) =
+    T.intercalate ", " <$> findCompletionsByPrefix stub level
 handleCommand (Load moduleName) = loadModule moduleName
 handleCommand (LoadDependencies moduleName) = do
     _ <- loadModule moduleName
@@ -89,10 +98,11 @@ handleCommand Quit = liftIO exitSuccess
 
 loadModule :: T.Text -> PscIde T.Text
 loadModule mn = do
-  path <- liftIO $ filePathFromModule mn
-  case path of
-    Right p -> loadExtern p >> return ("Loaded extern file at: " <> T.pack p)
-    Left err -> return err
+    path <- liftIO $ filePathFromModule mn
+    case path of
+        Right p ->
+            loadExtern p >> return ("Loaded extern file at: " <> T.pack p)
+        Left err -> return err
 
 
 filePathFromModule :: T.Text -> IO (Either T.Text FilePath)
