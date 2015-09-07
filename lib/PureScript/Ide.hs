@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
-module Purescript.Ide
+module PureScript.Ide
   (
     emptyPscState,
     findTypeForName,
@@ -22,9 +22,9 @@ import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
 import           Data.Text                (Text ())
 import qualified Data.Text                as T
-import           Purescript.Ide.Command
-import           Purescript.Ide.Externs
-import           Purescript.Ide.Pursuit
+import           PureScript.Ide.Command
+import           PureScript.Ide.Externs
+import           PureScript.Ide.Pursuit
 
 type Module = (Text, [ExternDecl])
 

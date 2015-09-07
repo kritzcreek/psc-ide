@@ -10,8 +10,8 @@ import           Network                  hiding (socketPort)
 import           Network.BSD              (getProtocolNumber)
 import           Network.Socket           hiding (PortNumber, accept, sClose)
 import           Options.Applicative
-import           Purescript.Ide
-import           Purescript.Ide.Command
+import           PureScript.Ide
+import           PureScript.Ide.Command
 import           System.Directory
 import           System.Exit
 import           System.FilePath

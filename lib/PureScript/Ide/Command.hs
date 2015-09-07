@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
-module Purescript.Ide.Command
+module PureScript.Ide.Command
        (parseCommand, Command(..), Level(..)) where
 
 import           Data.Text        (Text)

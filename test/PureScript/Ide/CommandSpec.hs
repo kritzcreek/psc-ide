@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Purescript.Ide.CommandSpec where
+module PureScript.Ide.CommandSpec where
 
 import           Data.Either    (isLeft)
-import           Purescript.Ide.Command
+import           PureScript.Ide.Command
 import           Test.Hspec
 
 spec :: Spec
