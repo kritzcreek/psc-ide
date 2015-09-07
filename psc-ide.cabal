@@ -23,7 +23,6 @@ library
   build-depends:         aeson
                        , base >= 4.7 && < 5
                        , containers
-                       , aeson
                        , mtl
                        , parsec
                        , text
@@ -52,7 +51,6 @@ executable psc-ide-server
                      , base >= 4.7 && < 5
                      , directory
                      , filepath
-                     , aeson
                      , lens
                      , lens-aeson
                      , mtl
