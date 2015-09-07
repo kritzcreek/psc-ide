@@ -4,7 +4,7 @@ module Purescript.Ide
   (
     emptyPscState,
     findTypeForName,
-    findCompletion,
+    findCompletionsByPrefix,
     loadExtern,
     getDependenciesForModule,
     printModules,
@@ -56,17 +56,21 @@ findTypeForName search = do
                     else Nothing
             _ -> Nothing
 
--- | Given a set of ExternDeclarations finds all the possible completions.
---   Doesn't do any fancy flex matching. Just prefix search
-findCompletion :: Text -> Level -> PscIde [Text]
-findCompletion stub level
+
+findCompletionsByPrefix :: Text -> Level -> PscIde [Text]
+findCompletionsByPrefix prefix level
   | level == File || level == Project = fileMatches
-  | level == Pursuit = liftM2 mappend fileMatches pursuitMatches
+  | level == Pursuit                  = liftM2 mappend fileMatches pursuitMatches
   where
-    fileMatches = fmap (mapMaybe go) getAllDecls
-    pursuitMatches = liftIO $ liftM (fmap fst) (searchPursuit stub)
+    fileMatches    = findCompletionsByPrefix' prefix <$> getAllDecls
+    pursuitMatches = liftIO $ liftM (fmap fst) (searchPursuit prefix)
+
+findCompletionsByPrefix' :: Text -> [ExternDecl] -> [Text]
+findCompletionsByPrefix' prefix decls =
+  mapMaybe go decls
+  where
     matches name =
-        if stub `T.isPrefixOf` name
+       if prefix `T.isPrefixOf` name
             then Just name
             else Nothing
     go :: ExternDecl -> Maybe Text
