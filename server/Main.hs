@@ -73,7 +73,7 @@ startServer port st_in =
 
 handleCommand :: Command -> PscIde T.Text
 handleCommand (TypeLookup ident) = fromMaybe "Not found" <$> findTypeForName ident
-handleCommand (Complete stub level) = T.intercalate ", " <$> findCompletion stub level
+handleCommand (Complete stub level) = T.intercalate ", " <$> findCompletionsByPrefix stub level
 handleCommand (Load moduleName) = loadModule moduleName
 handleCommand (LoadDependencies moduleName) = do
     _ <- loadModule moduleName
