@@ -38,12 +38,12 @@ emptyPscState :: PscState
 emptyPscState = PscState M.empty
 
 getAllDecls :: PscIde [ExternDecl]
-getAllDecls = return . concat =<< fmap pscStateModules get
+getAllDecls = concat . pscStateModules <$> get
 
 -- | Given a set of ExternDeclarations finds the type for a given function
 --   name and returns Nothing if the functionName can not be matched
 findTypeForName :: DeclIdent -> PscIde (Maybe Type)
-findTypeForName name = do
+findTypeForName name =
   getFirst . foldMap (First . go) <$> getAllDecls
   where
     go :: ExternDecl -> Maybe Type
@@ -108,5 +108,4 @@ unsafeStateFromDecls :: [[ExternDecl]] -> PscState
 unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
 
 printModules :: PscIde [ModuleIdent]
-printModules = return . M.keys . pscStateModules =<< get
-
+printModules = M.keys . pscStateModules <$> get
