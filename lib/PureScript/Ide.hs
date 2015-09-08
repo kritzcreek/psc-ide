@@ -11,9 +11,13 @@ module PureScript.Ide
     unsafeStateFromDecls,
     PscIde,
     PscState(..),
+    first,
+    maybeToEither,
+    textResult,
   ) where
 
 import           Control.Monad
+import           Control.Monad.Except
 import           Control.Monad.State.Lazy (StateT (..), get, modify)
 import           Control.Monad.Trans
 import           Data.Foldable
@@ -25,6 +29,8 @@ import qualified Data.Text                as T
 import           PureScript.Ide.Command
 import           PureScript.Ide.Externs
 import           PureScript.Ide.Pursuit
+import           PureScript.Ide.Err
+import           Text.Parsec.Error (ParseError(..))
 
 type Module = (ModuleIdent, [ExternDecl])
 
@@ -109,3 +115,11 @@ unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
 
 printModules :: PscIde [ModuleIdent]
 printModules = M.keys . pscStateModules <$> get
+
+-- | Taken from Data.Either.Utils
+maybeToEither :: MonadError e m =>
+                 e                      -- ^ (Left e) will be returned if the Maybe value is Nothing
+              -> Maybe a                -- ^ (Right a) will be returned if this is (Just a)
+              -> m a
+maybeToEither errorval Nothing = throwError errorval
+maybeToEither _ (Just normalval) = return normalval

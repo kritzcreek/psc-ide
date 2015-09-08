@@ -17,6 +17,7 @@ library
   exposed-modules:       PureScript.Ide
                        , PureScript.Ide.Command
                        , PureScript.Ide.Externs
+                       , PureScript.Ide.Err
                        , PureScript.Ide.CodecJSON
                        , PureScript.Ide.Pursuit
   default-language:      Haskell2010

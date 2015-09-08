@@ -12,6 +12,7 @@ import           Network.Socket           hiding (PortNumber, accept, sClose)
 import           Options.Applicative
 import           PureScript.Ide
 import           PureScript.Ide.Command
+import           PureScript.Ide.Err
 import           PureScript.Ide.Externs   (ModuleIdent)
 import           System.Directory
 import           System.Exit
@@ -68,43 +69,36 @@ startServer port st_in =
         case parseCommand cmd of
             Right cmd' -> do
                 result <- handleCommand cmd'
-                liftIO $ T.hPutStrLn h result
+                liftIO $ T.hPutStrLn h (textResult result)
             Left err ->
-                liftIO $
-                hPutStrLn
-                    h
-                    ("Failed to parse command '" ++
-                     -- show (show err) escapes newlines for us so we can
-                     -- send the error over the socket as a single line
-                     T.unpack cmd ++ "' with error: " ++ show (show err))
+                liftIO $ T.hPutStrLn h (textErr err)
         liftIO $ hClose h
 
-handleCommand :: Command -> PscIde T.Text
-handleCommand (TypeLookup ident) =
-    fromMaybe "Not found" <$> findTypeForName ident
-handleCommand (Complete stub level) =
-    T.intercalate ", " <$> findCompletionsByPrefix stub level
-handleCommand (Load moduleName) = loadModule moduleName
-handleCommand (LoadDependencies moduleName) = do
-    _ <- loadModule moduleName
+handleCommand :: Command -> PscIde (Either Err T.Text)
+handleCommand (TypeLookup ident)            = maybeToEither (NotFound ident) <$> findTypeForName ident
+handleCommand (Complete prefix level)       = Right . T.intercalate ", " <$> findCompletionsByPrefix prefix level
+handleCommand Print                         = Right . T.intercalate ", " <$> printModules
+handleCommand Cwd                           = Right . T.pack <$> liftIO getCurrentDirectory
+handleCommand (Load moduleName)             = loadModule moduleName
+handleCommand (LoadDependencies moduleName) = loadModuleDependencies' moduleName
+handleCommand Quit                          = liftIO exitSuccess
+
+loadModuleDependencies' :: ModuleIdent -> PscIde (Either Err T.Text)
+loadModuleDependencies' moduleName = do
+    loadModule moduleName
     mDeps <- getDependenciesForModule moduleName
     case mDeps of
         Just deps -> do
             mapM_ loadModule deps
-            return ("Dependencies for " <> moduleName <> " loaded.")
-        Nothing -> return "The Module you requested could not be found"
-handleCommand Print = T.intercalate ", " <$> printModules
-handleCommand Cwd = liftIO (T.pack <$> getCurrentDirectory)
-handleCommand Quit = liftIO exitSuccess
+            return (Right ("Dependencies for " <> moduleName <> " loaded."))
+        Nothing -> return (Left (ModuleNotFound moduleName))
 
-loadModule :: ModuleIdent -> PscIde T.Text
+loadModule :: ModuleIdent -> PscIde (Either Err T.Text)
 loadModule mn = do
     path <- liftIO $ filePathFromModule mn
     case path of
-        Right p ->
-            loadExtern p >> return ("Loaded extern file at: " <> T.pack p)
-        Left err -> return err
-
+        Right p  -> loadExtern p >> return (Right $ "Loaded extern file at: " <> T.pack p)
+        Left err -> return (Left . GeneralErr $ "Could not load module " <> T.unpack mn)
 
 filePathFromModule :: ModuleIdent -> IO (Either T.Text FilePath)
 filePathFromModule moduleName = do
