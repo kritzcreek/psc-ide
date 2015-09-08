@@ -12,6 +12,7 @@ import           Network.Socket           hiding (PortNumber, accept, sClose)
 import           Options.Applicative
 import           PureScript.Ide
 import           PureScript.Ide.Command
+import           PureScript.Ide.Externs   (ModuleIdent)
 import           System.Directory
 import           System.Exit
 import           System.FilePath
@@ -96,7 +97,7 @@ handleCommand Print = T.intercalate ", " <$> printModules
 handleCommand Cwd = liftIO (T.pack <$> getCurrentDirectory)
 handleCommand Quit = liftIO exitSuccess
 
-loadModule :: T.Text -> PscIde T.Text
+loadModule :: ModuleIdent -> PscIde T.Text
 loadModule mn = do
     path <- liftIO $ filePathFromModule mn
     case path of
@@ -105,7 +106,7 @@ loadModule mn = do
         Left err -> return err
 
 
-filePathFromModule :: T.Text -> IO (Either T.Text FilePath)
+filePathFromModule :: ModuleIdent -> IO (Either T.Text FilePath)
 filePathFromModule moduleName = do
     cwd <- getCurrentDirectory
     let path = cwd </> "output" </> T.unpack moduleName </> "externs.purs"

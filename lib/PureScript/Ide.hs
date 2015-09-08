@@ -26,7 +26,7 @@ import           PureScript.Ide.Command
 import           PureScript.Ide.Externs
 import           PureScript.Ide.Pursuit
 
-type Module = (Text, [ExternDecl])
+type Module = (ModuleIdent, [ExternDecl])
 
 type PscIde = StateT PscState IO
 
@@ -42,22 +42,20 @@ getAllDecls = return . concat =<< fmap pscStateModules get
 
 -- | Given a set of ExternDeclarations finds the type for a given function
 --   name and returns Nothing if the functionName can not be matched
-findTypeForName :: Text -> PscIde (Maybe Text)
-findTypeForName search = do
-  decls <- getAllDecls
-  return $ getFirst $ fold (map (First . go) decls)
+findTypeForName :: DeclIdent -> PscIde (Maybe Type)
+findTypeForName name = do
+  getFirst . foldMap (First . go) <$> getAllDecls
   where
-    go :: ExternDecl -> Maybe Text
+    go :: ExternDecl -> Maybe Type
     go decl =
         case decl of
             FunctionDecl n t ->
-                if search == n
+                if name == n
                     then Just t
                     else Nothing
             _ -> Nothing
 
-
-findCompletionsByPrefix :: Text -> Level -> PscIde [Text]
+findCompletionsByPrefix :: DeclIdent -> Level -> PscIde [DeclIdent]
 findCompletionsByPrefix prefix level
   | level == File || level == Project = fileMatches
   | level == Pursuit                  = liftM2 mappend fileMatches pursuitMatches
@@ -65,7 +63,7 @@ findCompletionsByPrefix prefix level
     fileMatches    = findCompletionsByPrefix' prefix <$> getAllDecls
     pursuitMatches = liftIO $ liftM (fmap fst) (searchPursuit prefix)
 
-findCompletionsByPrefix' :: Text -> [ExternDecl] -> [Text]
+findCompletionsByPrefix' :: DeclIdent -> [ExternDecl] -> [DeclIdent]
 findCompletionsByPrefix' prefix decls =
   mapMaybe go decls
   where
@@ -73,7 +71,7 @@ findCompletionsByPrefix' prefix decls =
        if prefix `T.isPrefixOf` name
             then Just name
             else Nothing
-    go :: ExternDecl -> Maybe Text
+    go :: ExternDecl -> Maybe DeclIdent
     go (FunctionDecl name _) = matches name
     go (DataDecl name _) = matches name
     go _ = Nothing
@@ -94,7 +92,7 @@ loadExtern fp = do
                          })
         Left _ -> liftIO $ putStrLn "The module could not be parsed"
 
-getDependenciesForModule :: Text -> PscIde (Maybe [Text])
+getDependenciesForModule :: ModuleIdent -> PscIde (Maybe [ModuleIdent])
 getDependenciesForModule m = do
   mDecls <- M.lookup m . pscStateModules <$> get
   return $ mapMaybe getDependencyName <$> mDecls
@@ -109,6 +107,6 @@ unsafeModuleFromDecls _ =
 unsafeStateFromDecls :: [[ExternDecl]] -> PscState
 unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
 
-printModules :: PscIde [Text]
+printModules :: PscIde [ModuleIdent]
 printModules = return . M.keys . pscStateModules =<< get
 
