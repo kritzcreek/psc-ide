@@ -7,6 +7,7 @@ import qualified Data.Text        as T
 import           Text.Parsec
 import           Text.Parsec.Text
 import           PureScript.Ide.Externs (ModuleIdent, DeclIdent)
+import           PureScript.Ide.Err
 
 data Level
     = File
@@ -24,8 +25,9 @@ data Command
     | Quit
     deriving (Show,Eq)
 
-parseCommand :: Text -> Either ParseError Command
-parseCommand = parse parseCommand' ""
+parseCommand :: T.Text -> Either Err Command
+parseCommand t = first (\parseErr -> ParseErr parseErr "Parse error")
+                       (parse parseCommand' "" t)
 
 parseCommand' :: Parser Command
 parseCommand' =
