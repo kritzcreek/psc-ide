@@ -10,6 +10,7 @@ module PureScript.Ide.Externs
     Type,
     Fixity(..),
     readExternFile,
+    parseExtern,
     parseExternDecl,
     typeParse
   ) where
@@ -26,30 +27,58 @@ type ExternParse = Either ParseError [ExternDecl]
 
 -- | Parses an extern file into the ExternDecl format.
 readExternFile :: FilePath -> IO ExternParse
-readExternFile fp = readExtern <$> (T.lines <$> T.readFile fp)
+readExternFile fp = readExtern . T.lines <$> T.readFile fp
 
 readExtern :: [Text] -> ExternParse
-readExtern strs = mapM (parse parseExternDecl "") clean
+readExtern strs = mapM parseExtern clean
   where
     clean = removeComments strs
 
 removeComments :: [Text] -> [Text]
 removeComments = filter (not . T.isPrefixOf "--")
 
+parseExtern :: Text -> Either ParseError ExternDecl
+parseExtern = parse parseExternDecl ""
+
 parseExternDecl :: Parser ExternDecl
 parseExternDecl =
     try parseDependency <|> try parseFixityDecl <|> try parseFunctionDecl <|>
-    try parseDataDecl <|> try parseModuleDecl <|>
+    try parseDataDecl <|>
+    try parseModuleDecl <|>
     return (ModuleDecl "" [])
 
 parseDependency :: Parser ExternDecl
-parseDependency = do
-    string "import "
-    module' <- many1 (noneOf " ")
-    spaces
-    names <- many1 anyChar
+parseDependency =
+    try parseQualifiedImport <|> try parseHidingImport <|> parseSimpleImport
+
+parseSimpleImport :: Parser ExternDecl
+parseSimpleImport = do
+    string "import"
+    module' <- identifier
+    char '('
+    names <- sepBy identifier (char ',')
+    char ')'
     eof
-    return $ Dependency (T.pack module') (T.pack names)
+    return $ Dependency module' names
+
+parseHidingImport :: Parser ExternDecl
+parseHidingImport = do
+    string "import"
+    module' <- identifier
+    string "hiding"
+    spaces
+    char '('
+    hiddenNames <- sepBy identifier (char ',')
+    char ')'
+    return $ Dependency module' []
+
+parseQualifiedImport :: Parser ExternDecl
+parseQualifiedImport = do
+    string "import qualified"
+    module' <- identifier
+    string "as"
+    qualifier <- identifier
+    return $ Dependency module' []
 
 parseFixityDecl :: Parser ExternDecl
 parseFixityDecl = do
@@ -76,7 +105,17 @@ parseFunctionDecl = do
     return (FunctionDecl (T.pack name) (T.pack type'))
 
 parseDataDecl :: Parser ExternDecl
-parseDataDecl = do
+parseDataDecl = parseDataDecl' <|> parseForeignDataDecl
+
+parseDataDecl' :: Parser ExternDecl
+parseDataDecl' = do
+  string "data"
+  ident <- identifier
+  kind <- many anyChar
+  return (DataDecl ident (T.pack kind))
+
+parseForeignDataDecl :: Parser ExternDecl
+parseForeignDataDecl = do
   string "foreign import data"
   spaces
   (name, kind) <- parseType
@@ -86,20 +125,32 @@ parseDataDecl = do
 parseModuleDecl :: Parser ExternDecl
 parseModuleDecl = do
   string "module"
-  spaces
-  name <- many1 (noneOf " ")
-  return (ModuleDecl (T.pack name) [])
+  name <- identifier
+  exports <- identifierList
+  return (ModuleDecl name exports)
 
 parseType :: Parser (String, String)
 parseType = do
-  name <- many1 (noneOf " ")
-  spaces
+  name <- identifier
   string "::"
   spaces
   type' <- many1 anyChar
-  return (name, type')
+  return (T.unpack name, type')
 
 typeParse :: Text -> Either Text (Text, Text)
 typeParse t = case parse parseType "" t of
   Right (x,y) -> Right (T.pack x, T.pack y)
   Left err -> Left (T.pack (show err))
+
+identifierList :: Parser [Text]
+identifierList = between (char '(') (char ')') (sepBy identifier (char ','))
+
+identifier :: Parser Text
+identifier = do
+    spaces
+    ident <-
+        -- necessary for being able to parse the following ((++), concat)
+        between (char '(') (char ')') (many1 (noneOf ", )")) <|>
+        many1 (noneOf ", )")
+    spaces
+    return (T.pack ident)
