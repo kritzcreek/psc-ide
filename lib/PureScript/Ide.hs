@@ -56,7 +56,7 @@ findTypeForName name =
 
 findCompletions :: [CompletionFilter] -> PscIde [Completion]
 findCompletions filters =
-    applyFilters filters <$> getAllModules
+    getCompletions filters <$> getAllModules
 
 findPursuitCompletions :: Text -> PscIde [Completion]
 findPursuitCompletions = liftIO . searchPursuit

@@ -8,8 +8,12 @@ type Completion = (DeclIdent, ModuleIdent, Type)
 
 type CompletionFilter = [Module] -> [Module]
 
-applyFilters :: [CompletionFilter] -> [Module] -> [Completion]
-applyFilters filters = completionsFromModules . foldl (.) id filters
+getCompletions :: [CompletionFilter] -> [Module] -> [Completion]
+getCompletions filters modules =
+    completionsFromModules (applyFilters filters modules)
+
+applyFilters :: [CompletionFilter] -> [Module] -> [Module]
+applyFilters = foldl (.) id
 
 completionsFromModules :: [Module] -> [Completion]
 completionsFromModules = concat . fmap completionFromModule
