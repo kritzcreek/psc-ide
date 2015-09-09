@@ -76,7 +76,7 @@ startServer port st_in =
 
 handleCommand :: Command -> PscIde (Either Err T.Text)
 handleCommand (TypeLookup ident)            = maybeToEither (NotFound ident) <$> findTypeForName ident
-handleCommand (Complete prefix level)       = Right . T.intercalate ", " <$> findCompletionsByPrefix prefix level
+handleCommand (Complete prefix level _)     = Right . T.intercalate ", " <$> findCompletionsByPrefix prefix level
 handleCommand Print                         = Right . T.intercalate ", " <$> printModules
 handleCommand Cwd                           = Right . T.pack <$> liftIO getCurrentDirectory
 handleCommand (Load moduleName)             = loadModule moduleName
@@ -85,7 +85,7 @@ handleCommand Quit                          = liftIO exitSuccess
 
 loadModuleDependencies' :: ModuleIdent -> PscIde (Either Err T.Text)
 loadModuleDependencies' moduleName = do
-    loadModule moduleName
+    _ <- loadModule moduleName
     mDeps <- getDependenciesForModule moduleName
     case mDeps of
         Just deps -> do
@@ -98,7 +98,7 @@ loadModule mn = do
     path <- liftIO $ filePathFromModule mn
     case path of
         Right p  -> loadExtern p >> return (Right $ "Loaded extern file at: " <> T.pack p)
-        Left err -> return (Left . GeneralErr $ "Could not load module " <> T.unpack mn)
+        Left _ -> return (Left . GeneralErr $ "Could not load module " <> T.unpack mn)
 
 filePathFromModule :: ModuleIdent -> IO (Either T.Text FilePath)
 filePathFromModule moduleName = do

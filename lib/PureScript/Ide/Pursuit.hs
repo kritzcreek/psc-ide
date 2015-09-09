@@ -9,6 +9,7 @@ import           Data.Text              (Text)
 import qualified Data.Text              as T
 import           Network.Wreq
 import           PureScript.Ide.Externs (typeParse)
+import           PureScript.Ide.Completion (Completion())
 
 queryUrl :: Text
 queryUrl = "http://pursuit.purescript.org/search?q="
@@ -16,9 +17,17 @@ queryUrl = "http://pursuit.purescript.org/search?q="
 jsonOpts :: Options
 jsonOpts = defaults & header "Accept" .~ ["application/json"]
 
-searchPursuit :: Text -> IO [(Text, Text)]
+myZip :: [a] -> [(b, c)] -> [(a, b, c)]
+myZip = zipWith (\a (b, c) -> (a, b, c))
+
+searchPursuit :: Text -> IO [Completion]
 searchPursuit query = do
     r <- getWith jsonOpts (T.unpack $ queryUrl <> query)
     let texts = r ^.. responseBody . values . key "text" . _String
-    let (_,results) = partitionEithers $ typeParse <$> texts
-    return results
+    let moduleNames = r ^..
+                      responseBody .
+                      values .
+                      key "info" .
+                      key "module" .
+                      _String
+    return $ myZip moduleNames $ rights $ typeParse <$> texts

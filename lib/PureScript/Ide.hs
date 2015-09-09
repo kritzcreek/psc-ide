@@ -19,41 +19,36 @@ module PureScript.Ide
 import           Control.Monad
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy (StateT (..), get, modify)
-import           Control.Monad.Trans
-import           Data.Foldable
 import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
 import           Data.Text                (Text ())
 import qualified Data.Text                as T
 import           PureScript.Ide.Command
+import           PureScript.Ide.Completion
 import           PureScript.Ide.Externs
 import           PureScript.Ide.Pursuit
 import           PureScript.Ide.Err
-import           Text.Parsec.Error (ParseError(..))
-
-type Module = (ModuleIdent, [ExternDecl])
+import           PureScript.Ide.Types
 
 type PscIde = StateT PscState IO
 
-data PscState = PscState
-    { pscStateModules :: M.Map Text [ExternDecl]
-    } deriving (Show,Eq)
-
-emptyPscState :: PscState
-emptyPscState = PscState M.empty
-
 getAllDecls :: PscIde [ExternDecl]
 getAllDecls = concat . pscStateModules <$> get
+
+getDeclsForModules :: [ModuleIdent] -> PscIde [ExternDecl]
+getDeclsForModules moduleIdents = do
+    modules <- pscStateModules <$> get
+    return . concat $ mapMaybe (`M.lookup` modules) moduleIdents
 
 -- | Given a set of ExternDeclarations finds the type for a given function
 --   name and returns Nothing if the functionName can not be matched
 findTypeForName :: DeclIdent -> PscIde (Maybe Type)
 findTypeForName name =
-  getFirst . foldMap (First . go) <$> getAllDecls
+  getFirst . foldMap (First . nameMatches) <$> getAllDecls
   where
-    go :: ExternDecl -> Maybe Type
-    go decl =
+    nameMatches :: ExternDecl -> Maybe Type
+    nameMatches decl =
         case decl of
             FunctionDecl n t ->
                 if name == n
@@ -61,26 +56,34 @@ findTypeForName name =
                     else Nothing
             _ -> Nothing
 
-findCompletionsByPrefix :: DeclIdent -> Level -> PscIde [DeclIdent]
-findCompletionsByPrefix prefix level
-  | level == File || level == Project = fileMatches
-  | level == Pursuit                  = liftM2 mappend fileMatches pursuitMatches
+findCompletions :: [CompletionFilter] -> PscIde [Completion]
+findCompletions filters =
+    applyFilters filters . M.toList . pscStateModules <$> get
+
+findPursuitCompletions :: Text -> PscIde [Completion]
+findPursuitCompletions = liftIO . searchPursuit
+
+findCompletionsByPrefix :: Text -> Level -> PscIde [DeclIdent]
+findCompletionsByPrefix prefix level =
+  case level of
+       Pursuit -> liftM2 mappend fileMatches pursuitMatches
+       _       -> fileMatches
   where
     fileMatches    = findCompletionsByPrefix' prefix <$> getAllDecls
-    pursuitMatches = liftIO $ liftM (fmap fst) (searchPursuit prefix)
+    pursuitMatches = liftIO $ fmap (\(_, x, _) -> x) <$> searchPursuit prefix
 
 findCompletionsByPrefix' :: DeclIdent -> [ExternDecl] -> [DeclIdent]
-findCompletionsByPrefix' prefix decls =
-  mapMaybe go decls
+findCompletionsByPrefix' prefix =
+  mapMaybe matches
   where
-    matches name =
+    matches :: ExternDecl -> Maybe DeclIdent
+    matches (FunctionDecl name _) = maybePrefix name
+    matches (DataDecl name _) = maybePrefix name
+    matches _ = Nothing
+    maybePrefix name =
        if prefix `T.isPrefixOf` name
             then Just name
             else Nothing
-    go :: ExternDecl -> Maybe DeclIdent
-    go (FunctionDecl name _) = matches name
-    go (DataDecl name _) = matches name
-    go _ = Nothing
 
 loadExtern :: FilePath -> PscIde ()
 loadExtern fp = do

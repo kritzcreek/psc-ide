@@ -6,6 +6,7 @@ import           Data.Text        (Text)
 import qualified Data.Text        as T
 import           Text.Parsec
 import           Text.Parsec.Text
+
 import           PureScript.Ide.Externs (ModuleIdent, DeclIdent)
 import           PureScript.Ide.Err
 
@@ -17,7 +18,7 @@ data Level
 
 data Command
     = TypeLookup DeclIdent
-    | Complete Text Level
+    | Complete Text Level (Maybe [ModuleIdent])
     | Load ModuleIdent
     | LoadDependencies ModuleIdent
     | Print
@@ -52,7 +53,18 @@ parseComplete = do
     stub <- many1 (noneOf " ")
     spaces
     level <- parseLevel
-    return (Complete (T.pack stub) level)
+    modules <- parseModuleList <|> return Nothing
+    return (Complete (T.pack stub) level modules)
+
+parseModuleList :: Parser (Maybe [Text])
+parseModuleList = do
+  spaces
+  string "using"
+  spaces
+  idents <- sepBy1 (many (noneOf ", ")) (spaces >> string "," >> spaces)
+  spaces
+  return $ Just (T.pack <$> idents)
+
 
 parseLoad :: Parser Command
 parseLoad = do
