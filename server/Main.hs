@@ -14,6 +14,7 @@ import           PureScript.Ide
 import           PureScript.Ide.Command
 import           PureScript.Ide.Err
 import           PureScript.Ide.Externs   (ModuleIdent)
+import           PureScript.Ide.Completion
 import           System.Directory
 import           System.Exit
 import           System.FilePath
@@ -33,6 +34,7 @@ listenOnLocalhost (PortNumber port) = do
                  bindSocket sock (SockAddrInet port localhost)
                  listen sock maxListenQueue
                  return sock)
+listenOnLocalhost _ = error "Wrong Porttype"
 
 data Options = Options
     { optionsDirectory :: Maybe FilePath
@@ -75,13 +77,24 @@ startServer port st_in =
         liftIO $ hClose h
 
 handleCommand :: Command -> PscIde (Either Err T.Text)
-handleCommand (TypeLookup ident)            = maybeToEither (NotFound ident) <$> findTypeForName ident
-handleCommand (Complete prefix level _)     = Right . T.intercalate ", " <$> findCompletionsByPrefix prefix level
-handleCommand Print                         = Right . T.intercalate ", " <$> printModules
-handleCommand Cwd                           = Right . T.pack <$> liftIO getCurrentDirectory
-handleCommand (Load moduleName)             = loadModule moduleName
-handleCommand (LoadDependencies moduleName) = loadModuleDependencies' moduleName
-handleCommand Quit                          = liftIO exitSuccess
+handleCommand (TypeLookup ident) =
+    maybeToEither (NotFound ident) <$> findTypeForName ident
+handleCommand (Complete prefix _ Nothing) =
+    Right . T.intercalate ", " <$> map showCompletion <$>
+    findCompletions [prefixFilter prefix]
+handleCommand (Complete prefix _ (Just modules)) =
+    Right . T.intercalate ", " <$> map showCompletion <$>
+    findCompletions [prefixFilter prefix, moduleFilter modules]
+handleCommand Print =
+    Right . T.intercalate ", " <$> printModules
+handleCommand Cwd =
+    Right . T.pack <$> liftIO getCurrentDirectory
+handleCommand (Load moduleName) =
+    loadModule moduleName
+handleCommand (LoadDependencies moduleName) =
+    loadModuleDependencies' moduleName
+handleCommand Quit =
+    liftIO exitSuccess
 
 loadModuleDependencies' :: ModuleIdent -> PscIde (Either Err T.Text)
 loadModuleDependencies' moduleName = do

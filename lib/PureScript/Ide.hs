@@ -4,7 +4,7 @@ module PureScript.Ide
   (
     emptyPscState,
     findTypeForName,
-    findCompletionsByPrefix,
+    findCompletions,
     loadExtern,
     getDependenciesForModule,
     printModules,
@@ -16,15 +16,12 @@ module PureScript.Ide
     textResult,
   ) where
 
-import           Control.Monad
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy (StateT (..), get, modify)
 import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
 import           Data.Text                (Text ())
-import qualified Data.Text                as T
-import           PureScript.Ide.Command
 import           PureScript.Ide.Completion
 import           PureScript.Ide.Externs
 import           PureScript.Ide.Pursuit
@@ -60,28 +57,6 @@ findCompletions filters =
 
 findPursuitCompletions :: Text -> PscIde [Completion]
 findPursuitCompletions = liftIO . searchPursuit
-
-findCompletionsByPrefix :: Text -> Level -> PscIde [DeclIdent]
-findCompletionsByPrefix prefix level =
-  case level of
-       Pursuit -> liftM2 mappend fileMatches pursuitMatches
-       _       -> fileMatches
-  where
-    fileMatches    = findCompletionsByPrefix' prefix <$> getAllDecls
-    pursuitMatches = liftIO $ fmap (\(_, x, _) -> x) <$> searchPursuit prefix
-
-findCompletionsByPrefix' :: DeclIdent -> [ExternDecl] -> [DeclIdent]
-findCompletionsByPrefix' prefix =
-  mapMaybe matches
-  where
-    matches :: ExternDecl -> Maybe DeclIdent
-    matches (FunctionDecl name _) = maybePrefix name
-    matches (DataDecl name _) = maybePrefix name
-    matches _ = Nothing
-    maybePrefix name =
-       if prefix `T.isPrefixOf` name
-            then Just name
-            else Nothing
 
 loadExtern :: FilePath -> PscIde ()
 loadExtern fp = do

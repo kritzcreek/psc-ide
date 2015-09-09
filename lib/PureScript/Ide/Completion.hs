@@ -1,6 +1,7 @@
 module PureScript.Ide.Completion where
 
 import           Data.Maybe           (mapMaybe)
+import           Data.Monoid
 import           Data.Text            (Text, isPrefixOf)
 import           PureScript.Ide.Types
 
@@ -17,6 +18,10 @@ applyFilters = foldl (.) id
 
 completionsFromModules :: [Module] -> [Completion]
 completionsFromModules = concat . fmap completionFromModule
+
+showCompletion :: Completion -> Text
+showCompletion (moduleIdent, ident, type') =
+  "(" <> moduleIdent <> ", " <> ident <> ", " <> type' <> ")"
 
 completionFromModule :: Module -> [Completion]
 completionFromModule (ident, decls) =
