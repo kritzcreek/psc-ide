@@ -20,6 +20,8 @@ library
                        , PureScript.Ide.Err
                        , PureScript.Ide.CodecJSON
                        , PureScript.Ide.Pursuit
+                       , PureScript.Ide.Completion
+                       , PureScript.Ide.Types
   default-language:      Haskell2010
   build-depends:         aeson
                        , base >= 4.7 && < 5

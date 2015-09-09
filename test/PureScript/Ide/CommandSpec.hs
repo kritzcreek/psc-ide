@@ -22,6 +22,10 @@ spec = do
     it "parses a type lookup command" $
       parseCommand "typeLookup ident" `shouldBe` Right (TypeLookup "ident")
     it "parses a completion command" $
-      parseCommand "complete stub Project" `shouldBe` Right (Complete "stub" Project)
+      parseCommand "complete stub Project" `shouldBe` Right (Complete "stub" Project Nothing)
+    it "parses a completion command with modules" $
+      parseCommand "complete stub Project using Data.Array, Data.List"
+        `shouldBe`
+          Right (Complete "stub" Project (Just ["Data.Array", "Data.List"]))
     it "fails to parse a malformed command" $
       parseCommand "compasd asd" `shouldSatisfy` isLeft

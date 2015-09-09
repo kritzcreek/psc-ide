@@ -14,34 +14,15 @@ module PureScript.Ide.Externs
     typeParse
   ) where
 
-import           Data.Char        (digitToInt)
-import           Data.Text        (Text ())
-import qualified Data.Text        as T
-import qualified Data.Text.IO     as T
+import           Data.Char            (digitToInt)
+import           Data.Text            (Text ())
+import qualified Data.Text            as T
+import qualified Data.Text.IO         as T
+import           PureScript.Ide.Types
 import           Text.Parsec
 import           Text.Parsec.Text
 
 type ExternParse = Either ParseError [ExternDecl]
-
-data Fixity = Infix | Infixl | Infixr deriving(Show, Eq)
-
-type ModuleIdent = Text
-type DeclIdent   = Text
-type Type        = Text
-
-data ExternDecl
-    = FunctionDecl { functionName :: DeclIdent
-                   , functionType :: Type}
-    | FixityDeclaration Fixity
-                        Int
-                        DeclIdent
-    | Dependency { dependencyModule :: DeclIdent
-                 , dependencyNames  :: Text}
-    | ModuleDecl ModuleIdent
-                 [DeclIdent]
-    | DataDecl DeclIdent
-               Text
-    deriving (Show,Eq)
 
 -- | Parses an extern file into the ExternDecl format.
 readExternFile :: FilePath -> IO ExternParse
