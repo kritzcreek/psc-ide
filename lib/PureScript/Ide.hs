@@ -36,10 +36,8 @@ type PscIde = StateT PscState IO
 getAllDecls :: PscIde [ExternDecl]
 getAllDecls = concat . pscStateModules <$> get
 
-getDeclsForModules :: [ModuleIdent] -> PscIde [ExternDecl]
-getDeclsForModules moduleIdents = do
-    modules <- pscStateModules <$> get
-    return . concat $ mapMaybe (`M.lookup` modules) moduleIdents
+getAllModules :: PscIde [Module]
+getAllModules = M.toList . pscStateModules <$> get
 
 -- | Given a set of ExternDeclarations finds the type for a given function
 --   name and returns Nothing if the functionName can not be matched
@@ -58,7 +56,7 @@ findTypeForName name =
 
 findCompletions :: [CompletionFilter] -> PscIde [Completion]
 findCompletions filters =
-    applyFilters filters . M.toList . pscStateModules <$> get
+    applyFilters filters <$> getAllModules
 
 findPursuitCompletions :: Text -> PscIde [Completion]
 findPursuitCompletions = liftIO . searchPursuit
