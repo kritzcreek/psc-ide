@@ -16,7 +16,7 @@ data ExternDecl
                         Int
                         DeclIdent
     | Dependency { dependencyModule :: DeclIdent
-                 , dependencyNames  :: Text}
+                 , dependencyNames  :: [Text]}
     | ModuleDecl ModuleIdent
                  [DeclIdent]
     | DataDecl DeclIdent
