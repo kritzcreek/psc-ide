@@ -1,6 +1,6 @@
 module PureScript.Ide.Completion
-       (getCompletions, moduleFilter, prefixFilter, equalityFilter,
-        showCompletion)
+       (getCompletions, getExactMatches, moduleFilter, prefixFilter,
+        equalityFilter, showCompletion)
        where
 
 import           Data.Maybe           (mapMaybe)
@@ -11,12 +11,17 @@ import           PureScript.Ide.Types
 
 -- | Applies the CompletionFilters and the Matcher to the given Modules
 --   and sorts the found Completions according to the Matching Score
-getCompletions :: [CompletionFilter] -> Matcher -> [Module] -> [Completion]
-getCompletions filters matcher modules =
+getCompletions :: [Filter] -> Matcher -> [Module] -> [Completion]
+getCompletions filters (Matcher matcher) modules =
     matcher $ completionsFromModules (applyFilters filters modules)
 
-applyFilters :: [CompletionFilter] -> [Module] -> [Module]
-applyFilters = foldl (.) id
+getExactMatches :: DeclIdent -> [Filter] -> [Module] -> [Completion]
+getExactMatches search filters modules =
+    completionsFromModules
+    (applyFilters (equalityFilter search : filters) modules)
+
+applyFilters :: [Filter] -> [Module] -> [Module]
+applyFilters = foldl (\f (Filter g) -> f . g) id
 
 completionsFromModules :: [Module] -> [Completion]
 completionsFromModules = concat . fmap completionFromModule
@@ -36,13 +41,13 @@ completionFromModule (moduleIdent, decls) =
 -------------------------------- Filters --------------------------------------------
 
 -- | Only keeps the given Modules
-moduleFilter :: [ModuleIdent] -> CompletionFilter
+moduleFilter :: [ModuleIdent] -> Filter
 moduleFilter moduleIdents =
-    filter (flip elem moduleIdents . fst)
+    Filter $ filter (flip elem moduleIdents . fst)
 
 -- | Only keeps Identifiers that start with the given prefix
-prefixFilter :: Text -> CompletionFilter
-prefixFilter = identFilter prefix
+prefixFilter :: Text -> Filter
+prefixFilter = Filter . identFilter prefix
   where
     prefix :: ExternDecl -> Text -> Bool
     prefix (FunctionDecl name _) search = search `isPrefixOf` name
@@ -51,8 +56,8 @@ prefixFilter = identFilter prefix
 
 
 -- | Only keeps Identifiers that are equal to the search string
-equalityFilter :: Text -> CompletionFilter
-equalityFilter = identFilter equality
+equalityFilter :: Text -> Filter
+equalityFilter = Filter . identFilter equality
   where
     equality :: ExternDecl -> Text -> Bool
     equality (FunctionDecl name _) prefix = prefix == name
@@ -60,7 +65,7 @@ equalityFilter = identFilter equality
     equality _ _ = False
 
 
-identFilter :: (ExternDecl -> Text -> Bool ) -> Text -> CompletionFilter
+identFilter :: (ExternDecl -> Text -> Bool ) -> Text -> [Module] -> [Module]
 identFilter predicate search =
     filter (not . null . snd) . fmap filterModuleDecls
   where

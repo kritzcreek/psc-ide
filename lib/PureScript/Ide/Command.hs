@@ -1,85 +1,79 @@
-{-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
-module PureScript.Ide.Command
-       (parseCommand, Command(..), Level(..)) where
+{-# LANGUAGE ScopedTypeVariables #-}
+module PureScript.Ide.Command where
 
-import           Data.Text              (Text)
-import qualified Data.Text              as T
-import           PureScript.Ide.Err
-import           PureScript.Ide.Externs (DeclIdent, ModuleIdent)
-import           Text.Parsec
-import           Text.Parsec.Text
-
-data Level
-    = File
-    | Project
-    | Pursuit
-    deriving (Show,Eq)
+import           Control.Monad
+import           Data.Aeson
+import           Data.Maybe
+import           PureScript.Ide.Completion
+import           PureScript.Ide.Matcher
+import           PureScript.Ide.Types
 
 data Command
-    = TypeLookup DeclIdent
-    | Complete Text Level (Maybe [ModuleIdent])
-    | Load ModuleIdent
-    | LoadDependencies ModuleIdent
-    | Print
+    = Load { loadModules      :: [ModuleIdent]
+           , loadDependencies :: [ModuleIdent]}
+    | Type { typeSearch  :: DeclIdent
+           , typeFilters :: [Filter]}
+    | Complete { completeFilters :: [Filter]
+               , completeMatcher :: Matcher}
+    | List
     | Cwd
     | Quit
-    deriving (Show,Eq)
 
-parseCommand :: T.Text -> Either Err Command
-parseCommand t = first (`ParseErr` "Parse error") (parse parseCommand' "" t)
+instance FromJSON Command where
+  parseJSON = withObject "command" $ \o -> do
+    (command :: String) <- o .: "command"
+    case command of
+      "list" -> return List
+      "cwd"  -> return Cwd
+      "quit" -> return Quit
+      "load" -> do
+        params <- o .: "params"
+        mods <- params .:? "modules"
+        deps <- params .:? "dependencies"
+        return $ Load (fromMaybe [] mods) (fromMaybe [] deps)
+      "type" -> do
+        params <- o .: "params"
+        search <- params .: "search"
+        filters <- params .: "filters"
+        return $ Type search filters
+      "complete" -> do
+        params <- o .: "params"
+        filters <- params .:? "filters"
+        matcher <- params .:? "matcher"
+        return $ Complete (fromMaybe [] filters) (fromMaybe (Matcher id) matcher)
+      _ -> mzero
 
-parseCommand' :: Parser Command
-parseCommand' =
-    (string "print" >> return Print) <|> try (string "cwd" >> return Cwd) <|>
-    (string "quit" >> return Quit) <|>
-    try parseTypeLookup <|>
-    try parseComplete <|>
-    try parseLoad <|>
-    parseLoadDependencies
+instance FromJSON Filter where
+  parseJSON = withObject "filter" $ \o -> do
+    (filter' :: String) <- o .: "filter"
+    case filter' of
+      "exact" -> do
+        params <- o .: "params"
+        search <- params .: "search"
+        return $ equalityFilter search
+      "prefix" -> do
+        params <- o.: "params"
+        search <- params .: "search"
+        return $ prefixFilter search
+      "modules" -> do
+        params <- o .: "params"
+        modules <- params .: "modules"
+        return $ moduleFilter modules
+      "dependencies" -> do
+        params <- o .: "params"
+        (deps :: [ModuleIdent]) <- params .: "modules"
+        return $ error "Dependency Filter not implemented"
+      _ -> mzero
 
-parseTypeLookup :: Parser Command
-parseTypeLookup = do
-    string "typeLookup"
-    spaces
-    ident <- many1 anyChar
-    return (TypeLookup (T.pack ident))
-
-parseComplete :: Parser Command
-parseComplete = do
-    string "complete"
-    spaces
-    stub <- many1 (noneOf " ")
-    spaces
-    level <- parseLevel
-    modules <- parseModuleList <|> return Nothing
-    return (Complete (T.pack stub) level modules)
-
-parseModuleList :: Parser (Maybe [Text])
-parseModuleList = do
-    spaces
-    string "using"
-    spaces
-    idents <- sepBy1 (many (noneOf ", ")) (spaces >> string "," >> spaces)
-    spaces
-    return $ Just (T.pack <$> idents)
-
-
-parseLoad :: Parser Command
-parseLoad = do
-    string "load"
-    spaces
-    module' <- many1 anyChar
-    return (Load (T.pack module'))
-
-parseLoadDependencies :: Parser Command
-parseLoadDependencies = do
-    string "dependencies"
-    spaces
-    module' <- many1 anyChar
-    return (LoadDependencies (T.pack module'))
-
-parseLevel :: Parser Level
-parseLevel =
-    (string "File" >> return File) <|>
-    (try (string "Project") >> return Project) <|>
-    (string "Pursuit" >> return Pursuit)
+instance FromJSON Matcher where
+  parseJSON = withObject "matcher" $ \o -> do
+    (matcher :: Maybe String) <- o .:? "matcher"
+    case matcher of
+      Just "flex" -> do
+        params <- o .: "params"
+        search <- params .: "search"
+        return $ flexMatcher search
+      Just "helm" -> error "Helm matcher not implemented yet."
+      Just "distance" -> error "Distance matcher not implemented yet."
+      Just _ -> mzero
+      Nothing -> return $ Matcher id

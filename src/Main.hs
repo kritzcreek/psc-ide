@@ -1,11 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import           Control.Exception
 import           Data.Maybe          (fromMaybe)
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as T
 import           Network
 import           Options.Applicative
+import           System.IO
+import           System.Exit
 
 data Options = Options
     { optionsPort :: Maybe Int
@@ -14,14 +17,25 @@ data Options = Options
 main :: IO ()
 main = do
     Options port <- execParser opts
-    cmd <- T.getLine
-    client cmd (PortNumber . fromIntegral $ fromMaybe 4242 port) >>= putStrLn . T.unpack
+    let port' = PortNumber . fromIntegral $ fromMaybe 4242 port
+    client port'
   where
-    parser = Options <$> optional (option auto (long "port" <> short 'p'))
+    parser =
+        Options <$> optional (option auto (long "port" <> short 'p'))
     opts = info parser mempty
 
-client :: T.Text -> PortID -> IO T.Text
-client cmd port = do
-  h <- connectTo "localhost" port
-  T.hPutStrLn h cmd
-  T.hGetLine h
+client :: PortID -> IO ()
+client port = do
+    h <-
+        connectTo "localhost" port `catch`
+        (\(SomeException _) ->
+              putStrLn
+                  ("Couldn't connect to psc-ide-server on port: " ++
+                   show port) >>
+              exitFailure)
+    cmd <- T.getLine
+    T.hPutStrLn h cmd
+    res <- T.hGetLine h
+    putStrLn (T.unpack res)
+    hFlush stdout
+    hClose h

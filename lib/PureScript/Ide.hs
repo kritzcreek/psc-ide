@@ -25,24 +25,13 @@ getAllDecls = concat . pscStateModules <$> get
 getAllModules :: PscIde [Module]
 getAllModules = M.toList . pscStateModules <$> get
 
--- | Given a set of ExternDeclarations finds the type for a given function
---   name and returns Nothing if the functionName can not be matched
-findTypeForName :: DeclIdent -> PscIde (Maybe Type)
-findTypeForName name =
-  getFirst . foldMap (First . nameMatches) <$> getAllDecls
-  where
-    nameMatches :: ExternDecl -> Maybe Type
-    nameMatches decl =
-        case decl of
-            FunctionDecl n t ->
-                if name == n
-                    then Just t
-                    else Nothing
-            _ -> Nothing
-
-findCompletions :: [CompletionFilter] -> Matcher -> PscIde [Completion]
+findCompletions :: [Filter] -> Matcher -> PscIde [Completion]
 findCompletions filters matcher =
     getCompletions filters matcher <$> getAllModules
+
+findType :: DeclIdent -> [Filter] -> PscIde [Completion]
+findType search filters =
+  getExactMatches search filters <$> getAllModules
 
 findPursuitCompletions :: Text -> PscIde [Completion]
 findPursuitCompletions = liftIO . searchPursuit
@@ -81,8 +70,17 @@ unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
 printModules :: PscIde [ModuleIdent]
 printModules = M.keys . pscStateModules <$> get
 
-loadModuleDependencies' :: ModuleIdent -> PscIde (Either Err T.Text)
-loadModuleDependencies' moduleName = do
+-- | The first argument is a set of modules to load. The second argument
+--   denotes modules for which to load dependencies
+loadModulesAndDeps :: [ModuleIdent] -> [ModuleIdent] -> PscIde (Either Err T.Text)
+loadModulesAndDeps mods deps = do
+    r1 <- mapM loadModule mods
+    r2 <- mapM loadModuleDependencies deps
+    return $
+        liftM2 (<>) (T.concat <$> (sequence r1)) (T.concat <$> (sequence r2))
+
+loadModuleDependencies :: ModuleIdent -> PscIde (Either Err T.Text)
+loadModuleDependencies moduleName = do
     _ <- loadModule moduleName
     mDeps <- getDependenciesForModule moduleName
     case mDeps of
