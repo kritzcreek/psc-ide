@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module PureScript.Ide.Completion where
 
 import           Data.Maybe           (mapMaybe)
@@ -7,9 +8,9 @@ import           PureScript.Ide.Types
 
 type CompletionFilter = [Module] -> [Module]
 
-getCompletions :: [CompletionFilter] -> [Module] -> [Completion]
-getCompletions filters modules =
-    completionsFromModules (applyFilters filters modules)
+getCompletions :: [CompletionFilter] -> Matcher -> [Module] -> [Completion]
+getCompletions filters matcher modules =
+    matcher $ completionsFromModules (applyFilters filters modules)
 
 applyFilters :: [CompletionFilter] -> [Module] -> [Module]
 applyFilters = foldl (.) id

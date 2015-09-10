@@ -1,20 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Exception        (bracketOnError)
+import           Control.Exception         (bracketOnError)
 import           Control.Monad.State.Lazy
-import           Data.Maybe               (fromMaybe)
-import qualified Data.Text                as T
-import qualified Data.Text.IO             as T
-import           Network                  hiding (socketPort)
-import           Network.BSD              (getProtocolNumber)
-import           Network.Socket           hiding (PortNumber, accept, sClose)
+import           Data.Maybe                (fromMaybe)
+import qualified Data.Text                 as T
+import qualified Data.Text.IO              as T
+import           Network                   hiding (socketPort)
+import           Network.BSD               (getProtocolNumber)
+import           Network.Socket            hiding (PortNumber, accept, sClose)
 import           Options.Applicative
 import           PureScript.Ide
 import           PureScript.Ide.Command
-import           PureScript.Ide.Err
-import           PureScript.Ide.Externs   (ModuleIdent)
 import           PureScript.Ide.Completion
+import           PureScript.Ide.Err
+import           PureScript.Ide.Externs    (ModuleIdent)
+import           PureScript.Ide.Matcher
 import           System.Directory
 import           System.Exit
 import           System.FilePath
@@ -79,12 +80,12 @@ startServer port st_in =
 handleCommand :: Command -> PscIde (Either Err T.Text)
 handleCommand (TypeLookup ident) =
     maybeToEither (NotFound ident) <$> findTypeForName ident
-handleCommand (Complete prefix _ Nothing) =
+handleCommand (Complete search _ Nothing) =
     Right . T.intercalate ", " <$> map showCompletion <$>
-    findCompletions [prefixFilter prefix]
+    findCompletions [] (flexMatcher search)
 handleCommand (Complete prefix _ (Just modules)) =
     Right . T.intercalate ", " <$> map showCompletion <$>
-    findCompletions [prefixFilter prefix, moduleFilter modules]
+    findCompletions [prefixFilter prefix, moduleFilter modules] id -- id is the matcher here
 handleCommand Print =
     Right . T.intercalate ", " <$> printModules
 handleCommand Cwd =
