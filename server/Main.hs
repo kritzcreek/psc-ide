@@ -1,23 +1,23 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Exception        (bracketOnError)
+import           Control.Exception         (bracketOnError)
 import           Control.Monad.State.Lazy
-import           Data.Maybe               (fromMaybe)
-import qualified Data.Text                as T
-import qualified Data.Text.IO             as T
-import           Network                  hiding (socketPort)
-import           Network.BSD              (getProtocolNumber)
-import           Network.Socket           hiding (PortNumber, accept, sClose)
+import           Data.Maybe                (fromMaybe)
+import qualified Data.Text                 as T
+import qualified Data.Text.IO              as T
+import           Network                   hiding (socketPort)
+import           Network.BSD               (getProtocolNumber)
+import           Network.Socket            hiding (PortNumber, accept, sClose)
 import           Options.Applicative
 import           PureScript.Ide
 import           PureScript.Ide.Command
-import           PureScript.Ide.Err
-import           PureScript.Ide.Externs   (ModuleIdent)
 import           PureScript.Ide.Completion
+import           PureScript.Ide.Err
+import           PureScript.Ide.Matcher
+import           PureScript.Ide.Types
 import           System.Directory
 import           System.Exit
-import           System.FilePath
 import           System.IO
 
 -- Copied from upstream impl of listenOn
@@ -79,12 +79,12 @@ startServer port st_in =
 handleCommand :: Command -> PscIde (Either Err T.Text)
 handleCommand (TypeLookup ident) =
     maybeToEither (NotFound ident) <$> findTypeForName ident
-handleCommand (Complete prefix _ Nothing) =
+handleCommand (Complete search _ Nothing) =
     Right . T.intercalate ", " <$> map showCompletion <$>
-    findCompletions [prefixFilter prefix]
+    findCompletions [] (flexMatcher search)
 handleCommand (Complete prefix _ (Just modules)) =
     Right . T.intercalate ", " <$> map showCompletion <$>
-    findCompletions [prefixFilter prefix, moduleFilter modules]
+    findCompletions [prefixFilter prefix, moduleFilter modules] id -- id is the matcher here
 handleCommand Print =
     Right . T.intercalate ", " <$> printModules
 handleCommand Cwd =
@@ -96,29 +96,3 @@ handleCommand (LoadDependencies moduleName) =
 handleCommand Quit =
     liftIO exitSuccess
 
-loadModuleDependencies' :: ModuleIdent -> PscIde (Either Err T.Text)
-loadModuleDependencies' moduleName = do
-    _ <- loadModule moduleName
-    mDeps <- getDependenciesForModule moduleName
-    case mDeps of
-        Just deps -> do
-            mapM_ loadModule deps
-            return (Right ("Dependencies for " <> moduleName <> " loaded."))
-        Nothing -> return (Left (ModuleNotFound moduleName))
-
-loadModule :: ModuleIdent -> PscIde (Either Err T.Text)
-loadModule mn = do
-    path <- liftIO $ filePathFromModule mn
-    case path of
-        Right p  -> loadExtern p >> return (Right $ "Loaded extern file at: " <> T.pack p)
-        Left _ -> return (Left . GeneralErr $ "Could not load module " <> T.unpack mn)
-
-filePathFromModule :: ModuleIdent -> IO (Either T.Text FilePath)
-filePathFromModule moduleName = do
-    cwd <- getCurrentDirectory
-    let path = cwd </> "output" </> T.unpack moduleName </> "externs.purs"
-    ex <- doesFileExist path
-    return $
-        if ex
-            then Right path
-            else Left ("Extern file for module " <> moduleName <>" could not be found")

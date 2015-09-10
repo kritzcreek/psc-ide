@@ -49,3 +49,6 @@ instance FromJSON Completion where
 instance ToJSON Completion where
   toJSON (Completion (m, d, t)) =
     object ["module" .= m, "identifier" .= d, "type" .= t]
+
+type CompletionFilter = [Module] -> [Module]
+type Matcher = [Completion] -> [Completion]
