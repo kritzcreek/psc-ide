@@ -8,8 +8,16 @@ import qualified Data.Text.Encoding   as TE
 import           PureScript.Ide.Types
 import           Text.Regex.TDFA      ((=~))
 
+
 type ScoredCompletion = (Double, Completion)
 
+-- | Matches any occurence of the search string with intersections
+-- |
+-- | The scoring measures how far the matches span the string where
+-- | closer is better.
+-- | Examples:
+-- |   flMa matches flexMatcher. Score: 14.28
+-- |   sons matches sortCompletions. Score: 6.25
 flexMatcher :: T.Text -> Matcher
 flexMatcher pattern = mkMatcher (flexMatch pattern)
 
@@ -24,7 +32,7 @@ flexMatch pattern = mapMaybe (flexRate pattern)
 
 flexRate :: T.Text -> Completion -> Maybe ScoredCompletion
 flexRate pattern c@(Completion (_,ident,_)) =
-    (,) <$> score pattern ident <*> pure c
+    (,) <$> flexScore pattern ident <*> pure c
 
 -- FlexMatching ala Sublime.
 -- Borrowed from: http://cdewaka.com/2013/06/fuzzy-pattern-matching-in-haskell/
@@ -32,9 +40,9 @@ flexRate pattern c@(Completion (_,ident,_)) =
 -- By string =~ pattern we'll get the start of the match and the length of
 -- the matchas a (start, length) tuple if there's a match.
 -- If match fails then it would be (-1,0)
-score :: T.Text -> DeclIdent -> Maybe Double
-score "" _ = Nothing
-score pat str =
+flexScore :: T.Text -> DeclIdent -> Maybe Double
+flexScore "" _ = Nothing
+flexScore pat str =
     case TE.encodeUtf8 str =~ TE.encodeUtf8 pat' :: (Int, Int) of
         (-1,0) -> Nothing
         (start,len) -> Just $ calcScore start (start + len)

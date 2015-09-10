@@ -1,13 +1,16 @@
-{-# LANGUAGE FlexibleContexts #-}
-module PureScript.Ide.Completion where
+module PureScript.Ide.Completion
+       (getCompletions, moduleFilter, prefixFilter, equalityFilter,
+        showCompletion)
+       where
 
 import           Data.Maybe           (mapMaybe)
 import           Data.Monoid
 import           Data.Text            (Text, isPrefixOf)
 import           PureScript.Ide.Types
 
-type CompletionFilter = [Module] -> [Module]
 
+-- | Applies the CompletionFilters and the Matcher to the given Modules
+--   and sorts the found Completions according to the Matching Score
 getCompletions :: [CompletionFilter] -> Matcher -> [Module] -> [Completion]
 getCompletions filters matcher modules =
     matcher $ completionsFromModules (applyFilters filters modules)
@@ -30,18 +33,39 @@ completionFromModule (moduleIdent, decls) =
         go (DataDecl name kind)      = Just (Completion (moduleIdent, name, kind))
         go _                         = Nothing
 
-prefixFilter :: Text -> CompletionFilter
-prefixFilter prefix =
-    filter (not . null . snd) . fmap filterModuleDecls
-    where
-        filterModuleDecls :: Module -> Module
-        filterModuleDecls (moduleIdent, decls) = (moduleIdent, filter matches decls)
+-------------------------------- Filters --------------------------------------------
 
-        matches :: ExternDecl -> Bool
-        matches (FunctionDecl name _) = prefix `isPrefixOf` name
-        matches (DataDecl name _) = prefix `isPrefixOf` name
-        matches _ = False
+type CompletionFilter = [Module] -> [Module]
 
+-- | Only keeps the given Modules
 moduleFilter :: [ModuleIdent] -> CompletionFilter
 moduleFilter moduleIdents =
     filter (flip elem moduleIdents . fst)
+
+-- | Only keeps Identifiers that start with the given prefix
+prefixFilter :: Text -> CompletionFilter
+prefixFilter = identFilter prefix
+  where
+    prefix :: ExternDecl -> Text -> Bool
+    prefix (FunctionDecl name _) search = search `isPrefixOf` name
+    prefix (DataDecl name _) search = search `isPrefixOf` name
+    prefix _ _ = False
+
+
+-- | Only keeps Identifiers that are equal to the search string
+equalityFilter :: Text -> CompletionFilter
+equalityFilter = identFilter equality
+  where
+    equality :: ExternDecl -> Text -> Bool
+    equality (FunctionDecl name _) prefix = prefix == name
+    equality (DataDecl name _) prefix = prefix == name
+    equality _ _ = False
+
+
+identFilter :: (ExternDecl -> Text -> Bool ) -> Text -> CompletionFilter
+identFilter predicate search =
+    filter (not . null . snd) . fmap filterModuleDecls
+  where
+    filterModuleDecls :: Module -> Module
+    filterModuleDecls (moduleIdent,decls) =
+        (moduleIdent, filter (`predicate` search) decls)
