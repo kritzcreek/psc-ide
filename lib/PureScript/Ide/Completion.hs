@@ -5,7 +5,6 @@ import           Data.Monoid
 import           Data.Text            (Text, isPrefixOf)
 import           PureScript.Ide.Types
 
-type Completion = (ModuleIdent, DeclIdent, Type)
 type CompletionFilter = [Module] -> [Module]
 
 getCompletions :: [CompletionFilter] -> [Module] -> [Completion]
@@ -19,15 +18,15 @@ completionsFromModules :: [Module] -> [Completion]
 completionsFromModules = concat . fmap completionFromModule
 
 showCompletion :: Completion -> Text
-showCompletion (moduleIdent,ident,type') =
+showCompletion (Completion (moduleIdent,ident,type')) =
     "(" <> moduleIdent <> ", " <> ident <> ", " <> type' <> ")"
 
 completionFromModule :: Module -> [Completion]
 completionFromModule (moduleIdent, decls) =
     mapMaybe go decls
     where
-        go (FunctionDecl name type') = Just (moduleIdent, name, type')
-        go (DataDecl name kind)      = Just (moduleIdent, name, kind)
+        go (FunctionDecl name type') = Just (Completion (moduleIdent, name, type'))
+        go (DataDecl name kind)      = Just (Completion (moduleIdent, name, kind))
         go _                         = Nothing
 
 prefixFilter :: Text -> CompletionFilter

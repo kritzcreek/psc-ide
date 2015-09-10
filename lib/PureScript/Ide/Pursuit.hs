@@ -8,8 +8,8 @@ import           Data.Monoid
 import           Data.Text              (Text)
 import qualified Data.Text              as T
 import           Network.Wreq
+import           PureScript.Ide.Types
 import           PureScript.Ide.Externs (typeParse)
-import           PureScript.Ide.Completion (Completion())
 
 queryUrl :: Text
 queryUrl = "http://pursuit.purescript.org/search?q="
@@ -30,4 +30,4 @@ searchPursuit query = do
                       key "info" .
                       key "module" .
                       _String
-    return $ myZip moduleNames $ rights $ typeParse <$> texts
+    return . fmap Completion . myZip moduleNames . rights $ typeParse <$> texts
