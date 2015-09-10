@@ -2,13 +2,12 @@
 module PureScript.Ide.Command
        (parseCommand, Command(..), Level(..)) where
 
-import           Data.Text        (Text)
-import qualified Data.Text        as T
+import           Data.Text              (Text)
+import qualified Data.Text              as T
+import           PureScript.Ide.Err
+import           PureScript.Ide.Externs (DeclIdent, ModuleIdent)
 import           Text.Parsec
 import           Text.Parsec.Text
-
-import           PureScript.Ide.Externs (ModuleIdent, DeclIdent)
-import           PureScript.Ide.Err
 
 data Level
     = File
@@ -27,8 +26,7 @@ data Command
     deriving (Show,Eq)
 
 parseCommand :: T.Text -> Either Err Command
-parseCommand t = first (\parseErr -> ParseErr parseErr "Parse error")
-                       (parse parseCommand' "" t)
+parseCommand t = first (`ParseErr` "Parse error") (parse parseCommand' "" t)
 
 parseCommand' :: Parser Command
 parseCommand' =
@@ -58,12 +56,12 @@ parseComplete = do
 
 parseModuleList :: Parser (Maybe [Text])
 parseModuleList = do
-  spaces
-  string "using"
-  spaces
-  idents <- sepBy1 (many (noneOf ", ")) (spaces >> string "," >> spaces)
-  spaces
-  return $ Just (T.pack <$> idents)
+    spaces
+    string "using"
+    spaces
+    idents <- sepBy1 (many (noneOf ", ")) (spaces >> string "," >> spaces)
+    spaces
+    return $ Just (T.pack <$> idents)
 
 
 parseLoad :: Parser Command
@@ -75,10 +73,10 @@ parseLoad = do
 
 parseLoadDependencies :: Parser Command
 parseLoadDependencies = do
-  string "dependencies"
-  spaces
-  module' <- many1 anyChar
-  return (LoadDependencies (T.pack module'))
+    string "dependencies"
+    spaces
+    module' <- many1 anyChar
+    return (LoadDependencies (T.pack module'))
 
 parseLevel :: Parser Level
 parseLevel =
