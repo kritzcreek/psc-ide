@@ -35,8 +35,6 @@ completionFromModule (moduleIdent, decls) =
 
 -------------------------------- Filters --------------------------------------------
 
-type CompletionFilter = [Module] -> [Module]
-
 -- | Only keeps the given Modules
 moduleFilter :: [ModuleIdent] -> CompletionFilter
 moduleFilter moduleIdents =

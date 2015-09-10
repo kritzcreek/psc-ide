@@ -31,6 +31,8 @@ library
                        , lens-aeson
                        , mtl
                        , parsec
+                       , directory
+                       , filepath
                        , regex-tdfa
                        , text
                        , wreq
@@ -53,13 +55,12 @@ executable psc-ide-server
   default-language:    Haskell2010
   ghc-options:         -threaded
   build-depends:     base >= 4.7 && < 5
-                     , directory
-                     , filepath
-                     , mtl
-                     , network
-                     , optparse-applicative
-                     , psc-ide
-                     , text
+                   , mtl
+                   , network
+                   , optparse-applicative
+                   , directory
+                   , psc-ide
+                   , text
 
 test-suite spec
   type:                exitcode-stdio-1.0

@@ -1,20 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
-module PureScript.Ide
-  (
-    emptyPscState,
-    findTypeForName,
-    findCompletions,
-    loadExtern,
-    getDependenciesForModule,
-    printModules,
-    unsafeStateFromDecls,
-    PscIde,
-    PscState(..),
-    first,
-    maybeToEither,
-    textResult,
-  ) where
+module PureScript.Ide where
 
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy (StateT (..), get, modify)
@@ -22,11 +8,14 @@ import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
 import           Data.Text                (Text ())
+import qualified Data.Text  as T
 import           PureScript.Ide.Completion
 import           PureScript.Ide.Externs
 import           PureScript.Ide.Pursuit
 import           PureScript.Ide.Err
 import           PureScript.Ide.Types
+import           System.FilePath
+import           System.Directory
 
 type PscIde = StateT PscState IO
 
@@ -91,6 +80,33 @@ unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
 
 printModules :: PscIde [ModuleIdent]
 printModules = M.keys . pscStateModules <$> get
+
+loadModuleDependencies' :: ModuleIdent -> PscIde (Either Err T.Text)
+loadModuleDependencies' moduleName = do
+    _ <- loadModule moduleName
+    mDeps <- getDependenciesForModule moduleName
+    case mDeps of
+        Just deps -> do
+            mapM_ loadModule deps
+            return (Right ("Dependencies for " <> moduleName <> " loaded."))
+        Nothing -> return (Left (ModuleNotFound moduleName))
+
+loadModule :: ModuleIdent -> PscIde (Either Err T.Text)
+loadModule mn = do
+    path <- liftIO $ filePathFromModule mn
+    case path of
+        Right p  -> loadExtern p >> return (Right $ "Loaded extern file at: " <> T.pack p)
+        Left _ -> return (Left . GeneralErr $ "Could not load module " <> T.unpack mn)
+
+filePathFromModule :: ModuleIdent -> IO (Either T.Text FilePath)
+filePathFromModule moduleName = do
+    cwd <- getCurrentDirectory
+    let path = cwd </> "output" </> T.unpack moduleName </> "externs.purs"
+    ex <- doesFileExist path
+    return $
+        if ex
+            then Right path
+            else Left ("Extern file for module " <> moduleName <>" could not be found")
 
 -- | Taken from Data.Either.Utils
 maybeToEither :: MonadError e m =>
