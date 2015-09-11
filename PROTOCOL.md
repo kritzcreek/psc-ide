@@ -59,9 +59,11 @@ The `complete` command looks up possible completions/corrections.
     "matcher": (optional) Matcher
   }
 }
-
+```
+### List/Cwd/Quit
 The `list` command returns all loaded modules. The `cwd` command returns the working
 directory of the server(should be your project root). `quit` quits the server.
+```json
 {
   "command": "list|cwd|quit"
 }
