@@ -68,8 +68,7 @@ test-suite spec
   hs-source-dirs:      test
   default-language:    Haskell2010
   main-is:             Spec.hs
-  other-modules:       PureScript.Ide.CommandSpec
-                     , PureScript.Ide.ExternsSpec
+  other-modules:       PureScript.Ide.ExternsSpec
   build-depends:       base    >= 4.7 && < 5
                      , psc-ide
                      , hspec

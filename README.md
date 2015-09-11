@@ -17,10 +17,10 @@ It supports the following options:
 - `-d / --directory` specify the toplevel directory of your project. Defaults to
   the current directory
 
-## Supported Commands
+## Issuing queries
 
-After you started the server you can run the following commands. Make sure you
-start by loading the modules before you try to query them.
+After you started the server you can start issuing requests using psc-ide.
+Make sure you start by loading the modules before you try to query them.
 
 psc-ide expects the build externs.purs inside the `output/` folder of your
 project after running `pulp build` or `psc-make` respectively.
@@ -28,52 +28,10 @@ project after running `pulp build` or `psc-make` respectively.
 (If you changed the port of the server you can change the port for psc-ide by
 using the -p option accordingly)
 
-### Loading single modules (expects `/output` to be your build folder):
+## Protocol
 
- ```
- echo "load Data.Array" | psc-ide
- "Success"
- ```
-
-### Loading modules including their dependencies:
-
- ```
- echo "dependencies Data.Array" | psc-ide
- "Dependencies for Data.Array loaded."
- ```
-
-### Type lookup for functions in the loaded modules:
-
- ```
- echo "typeLookup id" | psc-ide
- "forall a. a -> a"
- ```
-
-### Completion across the loaded modules:
-
- ```
- echo "complete fil Project" | psc-ide
- "filter", "filterM"
- ```
-
-### Completions from Pursuit:
-
-```
-echo "complete trav Pursuit" | psc -ide
-"traverse, traverse_, bitraverse, bitraverse_, cotraverse"
-```
-
-### Printing the loaded modules:
-
- ```
- echo print | psc-ide
- "Data.Array"
- ```
-
-### Quitting the server:
-```
-echo quit | psc-ide
-```
+For a documentation have a look at:
+[PROTOCOL.md](PROTOCOL.md)
 
 ## Installing and Building
 

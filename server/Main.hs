@@ -8,13 +8,13 @@ import qualified Data.Text                 as T
 import qualified Data.Text.IO              as T
 import           Network                   hiding (socketPort)
 import           Network.BSD               (getProtocolNumber)
-import           Network.Socket            hiding (PortNumber, accept, sClose)
+import           Network.Socket            hiding (PortNumber, Type, accept,
+                                            sClose)
 import           Options.Applicative
 import           PureScript.Ide
+import           PureScript.Ide.CodecJSON
 import           PureScript.Ide.Command
-import           PureScript.Ide.Completion
 import           PureScript.Ide.Err
-import           PureScript.Ide.Matcher
 import           PureScript.Ide.Types
 import           System.Directory
 import           System.Exit
@@ -64,35 +64,31 @@ startServer port st_in =
         (h,_,_) <- accept sock
         hSetEncoding h utf8
         cmd <- T.hGetLine h
+        T.putStrLn cmd
         return (cmd, h)
     loop :: Socket -> PscIde ()
     loop sock = do
         (cmd,h) <- liftIO $ acceptCommand sock
-        case parseCommand cmd of
-            Right cmd' -> do
+        case decodeT cmd of
+            Just cmd' -> do
                 result <- handleCommand cmd'
+                liftIO $ T.putStrLn ("Answer was: " <> (T.pack . show $ result))
                 liftIO $ T.hPutStrLn h (textResult result)
-            Left err ->
-                liftIO $ T.hPutStrLn h (textErr err)
+            Nothing ->
+                liftIO $ T.hPutStrLn h "Error parsing Command."
         liftIO $ hClose h
 
 handleCommand :: Command -> PscIde (Either Err T.Text)
-handleCommand (TypeLookup ident) =
-    maybeToEither (NotFound ident) <$> findTypeForName ident
-handleCommand (Complete search _ Nothing) =
-    Right . T.intercalate ", " <$> map showCompletion <$>
-    findCompletions [] (flexMatcher search)
-handleCommand (Complete prefix _ (Just modules)) =
-    Right . T.intercalate ", " <$> map showCompletion <$>
-    findCompletions [prefixFilter prefix, moduleFilter modules] id -- id is the matcher here
-handleCommand Print =
+handleCommand (Load modules deps) =
+    loadModulesAndDeps modules deps
+handleCommand (Type search filters) =
+    Right . encodeT <$> findType search filters
+handleCommand (Complete filters matcher) =
+    Right . encodeT <$> findCompletions filters matcher
+handleCommand List =
     Right . T.intercalate ", " <$> printModules
 handleCommand Cwd =
     Right . T.pack <$> liftIO getCurrentDirectory
-handleCommand (Load moduleName) =
-    loadModule moduleName
-handleCommand (LoadDependencies moduleName) =
-    loadModuleDependencies' moduleName
 handleCommand Quit =
     liftIO exitSuccess
 

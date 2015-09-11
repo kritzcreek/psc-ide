@@ -22,10 +22,10 @@ flexMatcher :: T.Text -> Matcher
 flexMatcher pattern = mkMatcher (flexMatch pattern)
 
 mkMatcher :: ([Completion] -> [ScoredCompletion]) -> Matcher
-mkMatcher matcher = fmap snd . sortCompletions . matcher
+mkMatcher matcher = Matcher $ fmap snd . sortCompletions . matcher
 
 sortCompletions :: [ScoredCompletion] -> [ScoredCompletion]
-sortCompletions = sortBy (compare `on` fst)
+sortCompletions = sortBy (flip compare `on` fst)
 
 flexMatch :: T.Text -> [Completion] -> [ScoredCompletion]
 flexMatch pattern = mapMaybe (flexRate pattern)
