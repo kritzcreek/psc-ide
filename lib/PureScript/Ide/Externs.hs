@@ -49,10 +49,18 @@ parseExternDecl =
 
 parseDependency :: Parser ExternDecl
 parseDependency =
-    try parseQualifiedImport <|> try parseHidingImport <|> parseSimpleImport
+    try parseQualifiedImport <|> try parseHidingImport <|> try parseSpecifyingImport
+    <|> parseSimpleImport
 
 parseSimpleImport :: Parser ExternDecl
 parseSimpleImport = do
+    string "import"
+    module' <- identifier
+    eof
+    return $ Dependency module' []
+
+parseSpecifyingImport :: Parser ExternDecl
+parseSpecifyingImport = do
     string "import"
     module' <- identifier
     char '('
@@ -70,6 +78,7 @@ parseHidingImport = do
     char '('
     hiddenNames <- sepBy identifier (char ',')
     char ')'
+    eof
     return $ Dependency module' []
 
 parseQualifiedImport :: Parser ExternDecl
@@ -78,6 +87,7 @@ parseQualifiedImport = do
     module' <- identifier
     string "as"
     qualifier <- identifier
+    eof
     return $ Dependency module' []
 
 parseFixityDecl :: Parser ExternDecl

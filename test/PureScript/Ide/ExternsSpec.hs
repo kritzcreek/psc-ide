@@ -9,6 +9,9 @@ spec :: Spec
 spec = do
     describe "Parsing imports" $ do
         it "parses a simple import statement" $
+            parseExtern "import Data.Array" `shouldBe`
+              Right (Dependency "Data.Array" [])
+        it "parses a simple import statement" $
             parseExtern "import Data.Text (functionName, (++))" `shouldBe`
               Right (Dependency "Data.Text" ["functionName", "++"])
         it "parses a hiding import statement" $
