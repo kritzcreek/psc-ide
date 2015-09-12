@@ -4,8 +4,8 @@ module PureScript.Ide.Command where
 import           Control.Monad
 import           Data.Aeson
 import           Data.Maybe
-import           PureScript.Ide.Completion
 import           PureScript.Ide.Matcher
+import           PureScript.Ide.Filter
 import           PureScript.Ide.Types
 
 data Command
@@ -61,8 +61,8 @@ instance FromJSON Filter where
         return $ moduleFilter modules
       "dependencies" -> do
         params <- o .: "params"
-        (deps :: [ModuleIdent]) <- params .: "modules"
-        return $ error "Dependency Filter not implemented"
+        deps <- params .: "modules"
+        return $ dependencyFilter deps
       _ -> mzero
 
 instance FromJSON Matcher where

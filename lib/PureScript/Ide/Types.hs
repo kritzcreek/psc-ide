@@ -17,7 +17,7 @@ data ExternDecl
     | FixityDeclaration Fixity
                         Int
                         DeclIdent
-    | Dependency { dependencyModule :: DeclIdent
+    | Dependency { dependencyModule :: ModuleIdent
                  , dependencyNames  :: [Text]}
     | ModuleDecl ModuleIdent
                  [DeclIdent]

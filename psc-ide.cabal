@@ -22,6 +22,7 @@ library
                        , PureScript.Ide.Pursuit
                        , PureScript.Ide.Completion
                        , PureScript.Ide.Matcher
+                       , PureScript.Ide.Filter
                        , PureScript.Ide.Types
   default-language:      Haskell2010
   build-depends:         aeson
