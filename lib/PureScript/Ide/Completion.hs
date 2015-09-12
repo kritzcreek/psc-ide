@@ -29,5 +29,6 @@ completionFromModule (moduleIdent, decls) =
     where
         go (FunctionDecl name type') = Just (Completion (moduleIdent, name, type'))
         go (DataDecl name kind)      = Just (Completion (moduleIdent, name, kind))
+        go (ModuleDecl name _)       = Just (Completion ("module", name, "module"))
         go _                         = Nothing
 

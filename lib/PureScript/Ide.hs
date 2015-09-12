@@ -60,7 +60,7 @@ getDependenciesForModule m = do
         getDependencyName _ = Nothing
 
 unsafeModuleFromDecls :: [ExternDecl] -> Module
-unsafeModuleFromDecls (ModuleDecl name _ : decls) = (name, decls)
+unsafeModuleFromDecls decls@(ModuleDecl name _ : _) = (name, decls)
 unsafeModuleFromDecls _ =
     error "An externs File didn't start with a module declaration"
 
@@ -77,7 +77,7 @@ loadModulesAndDeps mods deps = do
     r1 <- mapM loadModule mods
     r2 <- mapM loadModuleDependencies deps
     return $
-        liftM2 (<>) (T.concat <$> (sequence r1)) (T.concat <$> (sequence r2))
+        liftM2 (<>) (T.concat <$> sequence r1) (T.concat <$> sequence r2)
 
 loadModuleDependencies :: ModuleIdent -> PscIde (Either Err T.Text)
 loadModuleDependencies moduleName = do
