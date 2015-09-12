@@ -42,6 +42,7 @@ prefixFilter = Filter . identFilter prefix
     prefix :: ExternDecl -> Text -> Bool
     prefix (FunctionDecl name _) search = search `isPrefixOf` name
     prefix (DataDecl name _) search = search `isPrefixOf` name
+    prefix (ModuleDecl name _) search = search `isPrefixOf` name
     prefix _ _ = False
 
 
