@@ -78,8 +78,12 @@ loadModulesAndDeps :: [ModuleIdent] -> [ModuleIdent] -> PscIde (Either Error Suc
 loadModulesAndDeps mods deps = do
     r1 <- mapM loadModule mods
     r2 <- mapM loadModuleDependencies deps
-    return $ TextResult <$>
-        liftM2 (<>) (T.concat <$> sequence r1) (T.concat <$> sequence r2)
+    return $
+        TextResult <$>
+        liftM2
+            (\x y -> x <> ", " <> y)
+            (T.concat <$> sequence r1)
+            (T.concat <$> sequence r2)
 
 loadModuleDependencies :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModuleDependencies moduleName = do
