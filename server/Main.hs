@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import           Control.Monad
 import           Control.Exception         (bracketOnError)
 import           Control.Monad.State.Lazy
 import           Data.Maybe                (fromMaybe)
@@ -39,23 +40,25 @@ listenOnLocalhost _ = error "Wrong Porttype"
 data Options = Options
     { optionsDirectory :: Maybe FilePath
     , optionsPort      :: Maybe Int
+    , optionsDebug     :: Bool
     }
 
 main :: IO ()
 main = do
-    Options dir port <- execParser opts
+    Options dir port debug <- execParser opts
     maybe (return ()) setCurrentDirectory dir
-    startServer (PortNumber . fromIntegral $ fromMaybe 4242 port) emptyPscState
+    startServer (PortNumber . fromIntegral $ fromMaybe 4242 port) debug emptyPscState
   where
     parser =
         Options <$>
           optional (strOption (long "directory" <> short 'd')) <*>
-          optional (option auto (long "port" <> short 'p'))
+          optional (option auto (long "port" <> short 'p')) <*>
+          switch (long "debug")
     opts = info parser mempty
 
 
-startServer :: PortID -> PscState -> IO ()
-startServer port st_in =
+startServer :: PortID -> Bool -> PscState -> IO ()
+startServer port debug st_in =
     withSocketsDo $
     do sock <- listenOnLocalhost port
        evalStateT (forever (loop sock)) st_in
@@ -64,7 +67,7 @@ startServer port st_in =
         (h,_,_) <- accept sock
         hSetEncoding h utf8
         cmd <- T.hGetLine h
-        T.putStrLn cmd
+        when debug (T.putStrLn cmd)
         return (cmd, h)
     loop :: Socket -> PscIde ()
     loop sock = do
@@ -72,13 +75,13 @@ startServer port st_in =
         case decodeT cmd of
             Just cmd' -> do
                 result <- handleCommand cmd'
-                liftIO $ T.putStrLn ("Answer was: " <> (T.pack . show $ result))
+                when debug $ liftIO $ T.putStrLn ("Answer was: " <> (T.pack . show $ result))
                 case result of
                   -- What function can I use to clean this up?
                   Right r  -> liftIO $ T.hPutStrLn h (encodeT r)
                   Left err -> liftIO $ T.hPutStrLn h (encodeT err)
             Nothing ->
-                liftIO $ T.hPutStrLn h "Error parsing Command."
+                liftIO $ T.hPutStrLn h $ encodeT (GeneralError "Error parsing Command.")
         liftIO $ hClose h
 
 handleCommand :: Command -> PscIde (Either Error Success)
