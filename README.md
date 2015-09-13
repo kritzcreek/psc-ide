@@ -6,7 +6,7 @@ A tool which provides editor support for the PureScript language.
 [![Build Status](https://travis-ci.org/kRITZCREEK/psc-ide.svg?branch=travis-build)](https://travis-ci.org/kRITZCREEK/psc-ide)
 
 ## Installation
-Compiled binaries are provided for Windows, Ubuntu and OSX.
+Compiled binaries are provided for Windows, Ubuntu and OSX on the [release page](https://github.com/kRITZCREEK/psc-ide/releases).
 It is however very easy to build psc-ide with stack or cabal.
 
 After you installed the psc-ide binaries you can start using one
