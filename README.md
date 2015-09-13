@@ -5,6 +5,35 @@ A tool which provides editor support for the PureScript language.
 
 [![Build Status](https://travis-ci.org/kRITZCREEK/psc-ide.svg?branch=travis-build)](https://travis-ci.org/kRITZCREEK/psc-ide)
 
+## Installation
+Compiled binaries are provided for Windows, Ubuntu and OSX.
+It is however very easy to build psc-ide with stack or cabal.
+
+After you installed the psc-ide binaries you can start using one
+of the editor plugins.
+
+### Using stack
+`stack install psc-ide`
+
+### Using cabal
+For building with cabal the use of sandboxes is highly recommended to avoid "cabal hell"
+```
+mkdir psc-ide
+cd psc-ide
+cabal update
+cabal sandbox init
+cabal install psc-ide
+```
+And then copy the compiled binaries from `.cabal-sandbox/bin/` into a folder on your path.
+
+### From Source
+For the most recent version of psc-ide you can compile from master doing:
+```
+git clone https://github.com/kRITZCREEK/psc-ide.git
+cd psc-ide
+stack install
+```
+
 ## Editor Integration
 * [@epost](https://github.com/epost) wrote a plugin to integrate psc-ide with Emacs at https://github.com/epost/psc-ide-emacs.
 * Atom integration is available with https://github.com/nwolverson/atom-ide-purescript.
