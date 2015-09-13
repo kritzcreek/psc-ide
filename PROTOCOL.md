@@ -105,6 +105,10 @@ The following format is returned as the Result:
 These commands return strings.
 
 ## Filter:
+
+### Exact filter
+The Exact filter only keeps identifiers that are equal to the search term.
+
 ```json
 {
   "filter": "exact",
@@ -112,21 +116,37 @@ These commands return strings.
     "search": "filterM"
   }
 }
+```
+### Prefix filter
+The Prefix filter keeps identifiers/modules/data declarations that
+are prefixed by the search term.
 
+```json
 {
    "filter": "prefix",
    "params": {
      "search": "filt"
    }
 }
+```
 
+### Module filter
+The Module filter only keeps identifiers that appear in the listed modules.
+
+```json
 {
    "filter": "modules",
    "params": {
      "modules": ["My.Module"]
    }
 }
+```
 
+### Dependency filter
+The Dependency filter only keeps identifiers that appear in the listed modules
+and in any of their dependencies/imports.
+
+```json
 {
   "filter": "dependencies",
   "params": {
@@ -136,6 +156,16 @@ These commands return strings.
 ```
 
 ## Matcher:
+
+### Flex matcher
+Matches any occurence of the search string with intersections
+
+The scoring measures how far the matches span the string, where
+closer is better. The matches then get sorted with highest score first.
+
+Examples:
+- flMa matches **fl**ex**Ma**tcher. Score: 14.28
+- sons matches **so**rtCompletio**ns**. Score: 6.25
 ```json
 
 {
@@ -144,7 +174,13 @@ These commands return strings.
     "search": "filt"
   }
 }
+```
 
+### Distance Matcher
+
+The Distance matcher isn't implemented at this point.
+
+```json
 {
   "matcher": "distance",
   "params": {
