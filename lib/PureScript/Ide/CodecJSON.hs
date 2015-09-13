@@ -18,3 +18,4 @@ encodeT = toStrict . decodeUtf8 . encode
 
 decodeT :: (FromJSON a) => Text -> Maybe a
 decodeT = decode . encodeUtf8 . fromStrict
+

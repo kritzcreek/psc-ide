@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
-
 module PureScript.Ide where
 
 import           Control.Monad.Except
@@ -12,7 +10,7 @@ import qualified Data.Text  as T
 import           PureScript.Ide.Completion
 import           PureScript.Ide.Externs
 import           PureScript.Ide.Pursuit
-import           PureScript.Ide.Err
+import           PureScript.Ide.Error
 import           PureScript.Ide.Types
 import           System.FilePath
 import           System.Directory
@@ -25,24 +23,25 @@ getAllDecls = concat . pscStateModules <$> get
 getAllModules :: PscIde [Module]
 getAllModules = M.toList . pscStateModules <$> get
 
-findCompletions :: [Filter] -> Matcher -> PscIde [Completion]
+findCompletions :: [Filter] -> Matcher -> PscIde Success
 findCompletions filters matcher =
-    getCompletions filters matcher <$> getAllModules
+    CompletionResult <$> getCompletions filters matcher <$> getAllModules
 
-findType :: DeclIdent -> [Filter] -> PscIde [Completion]
+findType :: DeclIdent -> [Filter] -> PscIde Success
 findType search filters =
-  getExactMatches search filters <$> getAllModules
+    CompletionResult <$> getExactMatches search filters <$> getAllModules
 
 findPursuitCompletions :: Text -> PscIde [Completion]
 findPursuitCompletions = liftIO . searchPursuit
 
-loadExtern :: FilePath -> PscIde ()
+-- TODO: Introduce the Either Monad to clean this up
+loadExtern :: FilePath -> PscIde (Either Error ())
 loadExtern fp = do
     parseResult <- liftIO $ readExternFile fp
     case parseResult of
         Right decls ->
-            let (name, decls') = unsafeModuleFromDecls decls
-            in modify
+            case moduleFromDecls decls of
+              Right (name, decls') -> Right <$> modify
                    (\x ->
                          x
                          { pscStateModules = M.insert
@@ -50,7 +49,8 @@ loadExtern fp = do
                                decls'
                                (pscStateModules x)
                          })
-        Left _ -> liftIO $ putStrLn "The module could not be parsed"
+              Left err -> return $ Left err
+        Left e -> return . Left . ParseError e $ "The module at" ++ fp ++ "could not be parsed"
 
 getDependenciesForModule :: ModuleIdent -> PscIde (Maybe [ModuleIdent])
 getDependenciesForModule m = do
@@ -59,27 +59,29 @@ getDependenciesForModule m = do
   where getDependencyName (Dependency dependencyName _) = Just dependencyName
         getDependencyName _ = Nothing
 
-unsafeModuleFromDecls :: [ExternDecl] -> Module
-unsafeModuleFromDecls decls@(ModuleDecl name _ : _) = (name, decls)
-unsafeModuleFromDecls _ =
-    error "An externs File didn't start with a module declaration"
+moduleFromDecls :: [ExternDecl] -> Either Error Module
+moduleFromDecls decls@(ModuleDecl name _:_) = Right (name, decls)
+moduleFromDecls _ = Left (GeneralError "An externs File didn't start with a module declaration")
 
-unsafeStateFromDecls :: [[ExternDecl]] -> PscState
-unsafeStateFromDecls = PscState . M.fromList . fmap unsafeModuleFromDecls
+stateFromDecls :: [[ExternDecl]] -> Either Error PscState
+stateFromDecls externs= do
+  modules <- mapM moduleFromDecls externs
+  return $ PscState (M.fromList modules)
 
-printModules :: PscIde [ModuleIdent]
-printModules = M.keys . pscStateModules <$> get
+printModules :: PscIde Success
+printModules =
+    TextResult . T.intercalate ", " . M.keys . pscStateModules <$> get
 
 -- | The first argument is a set of modules to load. The second argument
 --   denotes modules for which to load dependencies
-loadModulesAndDeps :: [ModuleIdent] -> [ModuleIdent] -> PscIde (Either Err T.Text)
+loadModulesAndDeps :: [ModuleIdent] -> [ModuleIdent] -> PscIde (Either Error Success)
 loadModulesAndDeps mods deps = do
     r1 <- mapM loadModule mods
     r2 <- mapM loadModuleDependencies deps
-    return $
+    return $ TextResult <$>
         liftM2 (<>) (T.concat <$> sequence r1) (T.concat <$> sequence r2)
 
-loadModuleDependencies :: ModuleIdent -> PscIde (Either Err T.Text)
+loadModuleDependencies :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModuleDependencies moduleName = do
     _ <- loadModule moduleName
     mDeps <- getDependenciesForModule moduleName
@@ -89,22 +91,26 @@ loadModuleDependencies moduleName = do
             return (Right ("Dependencies for " <> moduleName <> " loaded."))
         Nothing -> return (Left (ModuleNotFound moduleName))
 
-loadModule :: ModuleIdent -> PscIde (Either Err T.Text)
+loadModule :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModule mn = do
     path <- liftIO $ filePathFromModule mn
     case path of
-        Right p  -> loadExtern p >> return (Right $ "Loaded extern file at: " <> T.pack p)
-        Left _ -> return (Left . GeneralErr $ "Could not load module " <> T.unpack mn)
+        Just p  -> do
+          res <- loadExtern p
+          case res of
+            Right _ -> return (Right $ "Loaded extern file at: " <> T.pack p)
+            Left err -> return (Left err)
+        Nothing -> return (Left . GeneralError $ "Could not load module " <> T.unpack mn)
 
-filePathFromModule :: ModuleIdent -> IO (Either T.Text FilePath)
+filePathFromModule :: ModuleIdent -> IO (Maybe FilePath)
 filePathFromModule moduleName = do
     cwd <- getCurrentDirectory
     let path = cwd </> "output" </> T.unpack moduleName </> "externs.purs"
     ex <- doesFileExist path
     return $
         if ex
-            then Right path
-            else Left ("Extern file for module " <> moduleName <>" could not be found")
+            then Just path
+            else Nothing
 
 -- | Taken from Data.Either.Utils
 maybeToEither :: MonadError e m =>

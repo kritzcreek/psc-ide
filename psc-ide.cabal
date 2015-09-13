@@ -17,7 +17,7 @@ library
   exposed-modules:       PureScript.Ide
                        , PureScript.Ide.Command
                        , PureScript.Ide.Externs
-                       , PureScript.Ide.Err
+                       , PureScript.Ide.Error
                        , PureScript.Ide.CodecJSON
                        , PureScript.Ide.Pursuit
                        , PureScript.Ide.Completion
