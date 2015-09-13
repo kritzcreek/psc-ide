@@ -1,4 +1,4 @@
-module PureScript.Ide.Matcher (flexMatcher) where
+module PureScript.Ide.Matcher (flexMatcher, runMatcher) where
 
 import           Data.Function        (on)
 import           Data.List            (sortBy)
@@ -23,6 +23,10 @@ flexMatcher pattern = mkMatcher (flexMatch pattern)
 
 mkMatcher :: ([Completion] -> [ScoredCompletion]) -> Matcher
 mkMatcher matcher = Matcher $ fmap snd . sortCompletions . matcher
+
+
+runMatcher :: Matcher -> [Completion] -> [Completion]
+runMatcher (Matcher m) = m
 
 sortCompletions :: [ScoredCompletion] -> [ScoredCompletion]
 sortCompletions = sortBy (flip compare `on` fst)

@@ -1,10 +1,11 @@
 module PureScript.Ide.Filter
-       (moduleFilter, prefixFilter, equalityFilter, dependencyFilter) where
+       (moduleFilter, prefixFilter, equalityFilter, dependencyFilter,
+        runFilter)
+       where
 
 import           Data.Maybe           (mapMaybe, listToMaybe)
 import           Data.Text            (Text, isPrefixOf)
 import           PureScript.Ide.Types
-
 
 -- | Only keeps the given Modules
 moduleFilter :: [ModuleIdent] -> Filter
@@ -37,7 +38,8 @@ dependencyFilter' moduleIdents mods =
 
 -- | Only keeps Identifiers that start with the given prefix
 prefixFilter :: Text -> Filter
-prefixFilter = Filter . identFilter prefix
+prefixFilter "" = Filter id
+prefixFilter t = Filter $ identFilter prefix t
   where
     prefix :: ExternDecl -> Text -> Bool
     prefix (FunctionDecl name _) search = search `isPrefixOf` name
@@ -63,3 +65,6 @@ identFilter predicate search =
     filterModuleDecls :: Module -> Module
     filterModuleDecls (moduleIdent,decls) =
         (moduleIdent, filter (`predicate` search) decls)
+
+runFilter :: Filter -> [Module] -> [Module]
+runFilter (Filter f) = f
