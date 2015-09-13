@@ -50,5 +50,20 @@ instance ToJSON Completion where
   toJSON (Completion (m, d, t)) =
     object ["module" .= m, "identifier" .= d, "type" .= t]
 
+data Success =
+  CompletionResult [Completion]
+  | TextResult Text
+    deriving(Show, Eq)
+
+encodeSuccess :: (ToJSON a) => a -> Value
+encodeSuccess res = object
+                    [
+                      "resultType" .= ("success" :: Text),
+                      "result" .= res
+                    ]
+instance ToJSON Success where
+  toJSON (CompletionResult cs) = encodeSuccess cs
+  toJSON (TextResult t) = encodeSuccess t
+
 newtype Filter  = Filter ([Module] -> [Module])
 newtype Matcher = Matcher ([Completion] -> [Completion])

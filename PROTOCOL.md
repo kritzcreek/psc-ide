@@ -1,8 +1,9 @@
 # Protocol
 
-Encode the following JSON formats into a single line string
-and pass them to psc-ide's stdin. You can then read the result
-from psc-ide's stdout as a single line.
+Encode the following JSON formats into a single line string and pass them to
+psc-ide's stdin. You can then read the result from psc-ide's stdout as a single
+line. The result needs to be unwrapped from the "wrapper" which separates success
+from failure. This wrapper is described at the end of this document.
 
 ## Command:
 ### Load
@@ -15,6 +16,7 @@ for completion and type info.
  - `dependencies :: (optional) [ModuleName]`: A list of modules to load 
   including their dependencies. In contrast to the `module` field, all the
   imports in these Modules will also be loaded.
+
 ```json
 {
   "command": "load",
@@ -24,8 +26,14 @@ for completion and type info.
   }
 }
 ```
+
+**Result:**
+
+The Load Command returns a string.
+
 ### Type
 The `type` command looks up the type for a given identifier.
+
 **Params:**
  - `search :: String`: The identifier to look for. Only matches on equality.
  - `filters :: [Filter]`: These filters will be applied before looking for the
@@ -40,8 +48,13 @@ The `type` command looks up the type for a given identifier.
   }
 }
 ```
+
+**Result:**
+The possible types are returned in the same format as completions
+
 ### Complete
 The `complete` command looks up possible completions/corrections.
+
 **Params**:
  - `filters :: [Filter]`: The same as for the `type` command. A candidate must match
   all filters.
@@ -60,14 +73,36 @@ The `complete` command looks up possible completions/corrections.
   }
 }
 ```
+
+**Result:**
+
+The following format is returned as the Result:
+
+```json
+[
+  {
+  "module": "Module1.Name",
+  "identifier": "filter",
+  "type": "forall a. (a -> Boolean) -> [a] -> [a]"
+  }
+]
+```
+
 ### List/Cwd/Quit
-The `list` command returns all loaded modules. The `cwd` command returns the working
-directory of the server(should be your project root). `quit` quits the server.
+`list` returns all loaded modules.
+
+`cwd` returns the working directory of the server(should be your project root).
+
+`quit` quits the server.
+
 ```json
 {
   "command": "list|cwd|quit"
 }
 ```
+
+**Result:**
+These commands return strings.
 
 ## Filter:
 ```json
@@ -118,3 +153,19 @@ directory of the server(should be your project root). `quit` quits the server.
   }
 }
 ```
+
+## Responses
+
+All Responses are wrapped in the following format:
+
+```json
+{
+  "resultType": "success|error",
+  "result": Result|Error
+}
+```
+
+### Error
+
+Errors at this point are merely Error strings. Newlines are escaped like `\n`
+and should be taken care of by the editor-plugin.

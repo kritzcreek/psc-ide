@@ -14,7 +14,7 @@ import           Options.Applicative
 import           PureScript.Ide
 import           PureScript.Ide.CodecJSON
 import           PureScript.Ide.Command
-import           PureScript.Ide.Err
+import           PureScript.Ide.Error
 import           PureScript.Ide.Types
 import           System.Directory
 import           System.Exit
@@ -73,22 +73,24 @@ startServer port st_in =
             Just cmd' -> do
                 result <- handleCommand cmd'
                 liftIO $ T.putStrLn ("Answer was: " <> (T.pack . show $ result))
-                liftIO $ T.hPutStrLn h (textResult result)
+                case result of
+                  -- What function can I use to clean this up?
+                  Right r  -> liftIO $ T.hPutStrLn h (encodeT r)
+                  Left err -> liftIO $ T.hPutStrLn h (encodeT err)
             Nothing ->
                 liftIO $ T.hPutStrLn h "Error parsing Command."
         liftIO $ hClose h
 
-handleCommand :: Command -> PscIde (Either Err T.Text)
+handleCommand :: Command -> PscIde (Either Error Success)
 handleCommand (Load modules deps) =
     loadModulesAndDeps modules deps
 handleCommand (Type search filters) =
-    Right . encodeT <$> findType search filters
+    Right <$> findType search filters
 handleCommand (Complete filters matcher) =
-    Right . encodeT <$> findCompletions filters matcher
+    Right <$> findCompletions filters matcher
 handleCommand List =
-    Right . T.intercalate ", " <$> printModules
+    Right <$> printModules
 handleCommand Cwd =
-    Right . T.pack <$> liftIO getCurrentDirectory
-handleCommand Quit =
-    liftIO exitSuccess
+    Right . TextResult . T.pack <$> liftIO getCurrentDirectory
+handleCommand Quit = Right <$> liftIO exitSuccess
 
