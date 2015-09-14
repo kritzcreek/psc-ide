@@ -2,6 +2,7 @@ module PureScript.Ide where
 
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy (StateT (..), get, modify)
+import           Control.Monad.Trans.Either
 import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
@@ -34,23 +35,17 @@ findType search filters =
 findPursuitCompletions :: Text -> PscIde [Completion]
 findPursuitCompletions = liftIO . searchPursuit
 
--- TODO: Introduce the Either Monad to clean this up
 loadExtern :: FilePath -> PscIde (Either Error ())
-loadExtern fp = do
-    parseResult <- liftIO $ readExternFile fp
-    case parseResult of
-        Right decls ->
-            case moduleFromDecls decls of
-              Right (name, decls') -> Right <$> modify
-                   (\x ->
-                         x
-                         { pscStateModules = M.insert
-                               name
-                               decls'
-                               (pscStateModules x)
-                         })
-              Left err -> return $ Left err
-        Left err -> return $ Left err
+loadExtern fp = runEitherT $ do
+    decls          <- EitherT . liftIO $ readExternFile fp
+    (name, decls') <- EitherT . return $ moduleFromDecls decls
+    modify (\x ->
+              x
+              { pscStateModules = M.insert
+                                  name
+                                  decls'
+                                  (pscStateModules x)
+              })
 
 getDependenciesForModule :: ModuleIdent -> PscIde (Maybe [ModuleIdent])
 getDependenciesForModule m = do
