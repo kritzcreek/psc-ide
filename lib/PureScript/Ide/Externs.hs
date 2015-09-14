@@ -3,7 +3,6 @@
 
 module PureScript.Ide.Externs
   (
-    ExternParse,
     ExternDecl(..),
     ModuleIdent,
     DeclIdent,
@@ -22,14 +21,13 @@ import qualified Data.Text.IO         as T
 import           PureScript.Ide.Types
 import           Text.Parsec
 import           Text.Parsec.Text
-
-type ExternParse = Either ParseError [ExternDecl]
+import           PureScript.Ide.Error   (Error(..), first)
 
 -- | Parses an extern file into the ExternDecl format.
-readExternFile :: FilePath -> IO ExternParse
+readExternFile :: FilePath -> IO (Either Error [ExternDecl])
 readExternFile fp = readExtern . T.lines <$> T.readFile fp
 
-readExtern :: [Text] -> ExternParse
+readExtern :: [Text] -> Either Error [ExternDecl]
 readExtern strs = mapM parseExtern clean
   where
     clean = removeComments strs
@@ -37,8 +35,8 @@ readExtern strs = mapM parseExtern clean
 removeComments :: [Text] -> [Text]
 removeComments = filter (not . T.isPrefixOf "--")
 
-parseExtern :: Text -> Either ParseError ExternDecl
-parseExtern = parse parseExternDecl ""
+parseExtern :: Text -> Either Error ExternDecl
+parseExtern = first (flip ParseError $ "") . parse parseExternDecl ""
 
 parseExternDecl :: Parser ExternDecl
 parseExternDecl =

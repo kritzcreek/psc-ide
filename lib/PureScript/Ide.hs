@@ -50,7 +50,7 @@ loadExtern fp = do
                                (pscStateModules x)
                          })
               Left err -> return $ Left err
-        Left e -> return . Left . ParseError e $ "The module at" ++ fp ++ "could not be parsed"
+        Left err -> return $ Left err
 
 getDependenciesForModule :: ModuleIdent -> PscIde (Maybe [ModuleIdent])
 getDependenciesForModule m = do
@@ -99,22 +99,18 @@ loadModule :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModule mn = do
     path <- liftIO $ filePathFromModule mn
     case path of
-        Just p  -> do
-          res <- loadExtern p
-          case res of
-            Right _ -> return (Right $ "Loaded extern file at: " <> T.pack p)
-            Left err -> return (Left err)
-        Nothing -> return (Left . GeneralError $ "Could not load module " <> T.unpack mn)
+        Right p -> loadExtern p >> return (Right $ "Loaded extern file at: " <> T.pack p)
+        Left err -> return (Left err)
 
-filePathFromModule :: ModuleIdent -> IO (Maybe FilePath)
+filePathFromModule :: ModuleIdent -> IO (Either Error FilePath)
 filePathFromModule moduleName = do
     cwd <- getCurrentDirectory
     let path = cwd </> "output" </> T.unpack moduleName </> "externs.purs"
     ex <- doesFileExist path
     return $
         if ex
-            then Just path
-            else Nothing
+            then Right path
+            else Left (ModuleFileNotFound moduleName)
 
 -- | Taken from Data.Either.Utils
 maybeToEither :: MonadError e m =>
