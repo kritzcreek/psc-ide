@@ -37,6 +37,7 @@ library
                        , regex-tdfa
                        , text
                        , wreq
+                       , either
   default-extensions:    OverloadedStrings
 
 executable psc-ide
