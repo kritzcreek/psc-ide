@@ -43,6 +43,8 @@ parseExternDecl =
     try parseDependency <|> try parseFixityDecl <|> try parseFunctionDecl <|>
     try parseDataDecl <|>
     try parseModuleDecl <|>
+    try parseTypeDecl <|>
+    try parseNewtypeDecl <|>
     return (ModuleDecl "" [])
 
 parseDependency :: Parser ExternDecl
@@ -136,6 +138,28 @@ parseModuleDecl = do
   name <- identifier
   exports <- identifierList
   return (ModuleDecl name exports)
+
+parseNewtypeDecl :: Parser ExternDecl
+parseNewtypeDecl = do
+  string "newtype"
+  name <- identifier
+  _ <- many (noneOf "=")
+  char '='
+  identifier
+  type' <- many anyChar
+  eof
+  return (DataDecl name (T.pack type'))
+
+parseTypeDecl :: Parser ExternDecl
+parseTypeDecl = do
+  string "type"
+  name <- identifier
+  _ <- many (noneOf "=")
+  char '='
+  spaces
+  type' <- many anyChar
+  eof
+  return (DataDecl name (T.pack type'))
 
 parseType :: Parser (String, String)
 parseType = do
