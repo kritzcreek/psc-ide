@@ -35,5 +35,12 @@ spec = do
         it "parses a foreign data declaration" $
             parseExtern "foreign import data STArray :: * -> * -> *" `shouldBe`
               Right (DataDecl "STArray" "* -> * -> *")
+    describe "Parsing type declarations" $ do
+        it "parses a newtype declaration" $
+            parseExtern "newtype Component (eff :: # !) (s :: *) (t :: *) = Component (s -> SYM.Handler eff t -> Prim.Array React.ReactElement)" `shouldBe`
+              Right (DataDecl "Component" "(s -> SYM.Handler eff t -> Prim.Array React.ReactElement)")
+        it "parses a type declaration" $
+            parseExtern "type Player = { age :: Prim.Number, name :: Prim.String }" `shouldBe`
+              Right (DataDecl "Player" "{ age :: Prim.Number, name :: Prim.String }")
 
 

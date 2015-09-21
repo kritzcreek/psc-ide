@@ -34,6 +34,7 @@ dependencyFilter' moduleIdents mods =
     extractDeps :: Module -> [ModuleIdent]
     extractDeps = mapMaybe extractDep . snd
       where extractDep (Dependency n _) = Just n
+            extractDep (ModuleDecl _ _) = Nothing
             extractDep _ = Nothing
 
 -- | Only keeps Identifiers that start with the given prefix
