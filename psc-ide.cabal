@@ -39,6 +39,7 @@ library
                        , wreq
                        , either
   default-extensions:    OverloadedStrings
+  ghc-options:         -O2
 
 executable psc-ide
   hs-source-dirs:      src
@@ -50,6 +51,7 @@ executable psc-ide
                      , text
                      , optparse-applicative
                      , network
+  ghc-options:         -O2 -Wall
 
 executable psc-ide-server
   hs-source-dirs:      server
@@ -63,6 +65,7 @@ executable psc-ide-server
                    , directory
                    , psc-ide
                    , text
+  ghc-options:         -O2 -Wall
 
 test-suite spec
   type:                exitcode-stdio-1.0
