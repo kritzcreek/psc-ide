@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module PureScript.Ide.Types where
 
 import           Control.Monad
@@ -53,6 +54,7 @@ instance ToJSON Completion where
 data Success =
   CompletionResult [Completion]
   | TextResult Text
+  | PursuitResult [PursuitResponse]
     deriving(Show, Eq)
 
 encodeSuccess :: (ToJSON a) => a -> Value
@@ -64,6 +66,43 @@ encodeSuccess res = object
 instance ToJSON Success where
   toJSON (CompletionResult cs) = encodeSuccess cs
   toJSON (TextResult t) = encodeSuccess t
+  toJSON (PursuitResult resp) = encodeSuccess resp
 
 newtype Filter  = Filter ([Module] -> [Module])
 newtype Matcher = Matcher ([Completion] -> [Completion])
+
+newtype PursuitQuery = PursuitQuery Text
+                     deriving (Show, Eq)
+
+data PursuitSearchType = Package | Identifier
+                       deriving (Show, Eq)
+
+instance FromJSON PursuitSearchType where
+  parseJSON (String t) = case t of
+    "package"    -> return Package
+    "completion" -> return Identifier
+    _            -> mzero
+  parseJSON _ = mzero
+
+instance FromJSON PursuitQuery where
+  parseJSON o = fmap PursuitQuery (parseJSON o)
+
+data PursuitResponse
+    = ModuleResponse { moduleResponseName    :: Text
+                     , moduleResponsePackage :: Text}
+    | DeclarationResponse { declarationResponseType    :: Text
+                          , declarationResponseModule  :: Text
+                          , declarationResponseIdent   :: Text
+                          , declarationResponsePackage :: Text
+                          }
+    deriving (Show,Eq)
+
+instance ToJSON PursuitResponse where
+    toJSON (ModuleResponse{moduleResponseName = name, moduleResponsePackage = package}) =
+        object ["module" .= name, "package" .= package]
+    toJSON (DeclarationResponse{..}) =
+        object
+            [ "module"  .= declarationResponseModule
+            , "ident"   .= declarationResponseIdent
+            , "type"    .= declarationResponseType
+            , "package" .= declarationResponsePackage]
