@@ -21,14 +21,13 @@ applyFilters :: [Filter] -> [Module] -> [Module]
 applyFilters = foldl (\f (Filter g) -> f . g) id
 
 completionsFromModules :: [Module] -> [Completion]
-completionsFromModules = concat . fmap completionFromModule
-
-completionFromModule :: Module -> [Completion]
-completionFromModule (moduleIdent, decls) =
-    mapMaybe go decls
+completionsFromModules = foldMap completionFromModule
     where
-        go (FunctionDecl name type') = Just (Completion (moduleIdent, name, type'))
-        go (DataDecl name kind)      = Just (Completion (moduleIdent, name, kind))
-        go (ModuleDecl name _)       = Just (Completion ("module", name, "module"))
-        go _                         = Nothing
+        completionFromModule :: Module -> [Completion]
+        completionFromModule (moduleIdent, decls) = mapMaybe (completionFromDecl moduleIdent) decls
 
+completionFromDecl :: ModuleIdent -> ExternDecl -> Maybe Completion
+completionFromDecl mi (FunctionDecl name type') = Just (Completion (mi, name, type'))
+completionFromDecl mi (DataDecl name kind)      = Just (Completion (mi, name, kind))
+completionFromDecl mi (ModuleDecl name _)       = Just (Completion ("module", name, "module"))
+completionFromDecl mi _                         = Nothing
