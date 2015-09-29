@@ -28,16 +28,17 @@ library
   build-depends:         aeson
                        , base >= 4.7 && < 5
                        , containers
+                       , directory
+                       , either
+                       , filepath
+                       , http-client
                        , lens
                        , lens-aeson
                        , mtl
                        , parsec
-                       , directory
-                       , filepath
                        , regex-tdfa
                        , text
                        , wreq
-                       , either
   default-extensions:    OverloadedStrings
   ghc-options:         -O2
 
