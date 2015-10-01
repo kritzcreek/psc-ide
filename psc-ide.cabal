@@ -1,5 +1,5 @@
 name:                psc-ide
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            Language support for the PureScript programming language
 description:         Please see README.md
 homepage:            http://github.com/kRITZCREEK/psc-ide
@@ -58,7 +58,6 @@ executable psc-ide-server
   hs-source-dirs:      server
   main-is:             Main.hs
   default-language:    Haskell2010
-  ghc-options:         -threaded
   build-depends:     base >= 4.7 && < 5
                    , mtl
                    , network
@@ -66,7 +65,7 @@ executable psc-ide-server
                    , directory
                    , psc-ide
                    , text
-  ghc-options:         -O2 -Wall
+  ghc-options:         -threaded -O2 -Wall
 
 test-suite spec
   type:                exitcode-stdio-1.0
