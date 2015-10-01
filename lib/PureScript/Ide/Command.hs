@@ -4,8 +4,8 @@ module PureScript.Ide.Command where
 import           Control.Monad
 import           Data.Aeson
 import           Data.Maybe
-import           PureScript.Ide.Matcher
 import           PureScript.Ide.Filter
+import           PureScript.Ide.Matcher
 import           PureScript.Ide.Types
 
 data Command
@@ -15,6 +15,8 @@ data Command
            , typeFilters :: [Filter]}
     | Complete { completeFilters :: [Filter]
                , completeMatcher :: Matcher}
+    | Pursuit { pursuitQuery      :: PursuitQuery
+              , pursuitSearchType :: PursuitSearchType}
     | List
     | Cwd
     | Quit
@@ -41,6 +43,11 @@ instance FromJSON Command where
         filters <- params .:? "filters"
         matcher <- params .:? "matcher"
         return $ Complete (fromMaybe [] filters) (fromMaybe (Matcher id) matcher)
+      "pursuit" -> do
+        params <- o .: "params"
+        query <- params .: "query"
+        queryType <- params .: "type"
+        return $ Pursuit query queryType
       _ -> mzero
 
 instance FromJSON Filter where
