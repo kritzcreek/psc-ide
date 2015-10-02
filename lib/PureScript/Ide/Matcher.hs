@@ -3,13 +3,14 @@ module PureScript.Ide.Matcher (flexMatcher, runMatcher) where
 import           Data.Function        (on)
 import           Data.List            (sortBy)
 import           Data.Maybe           (mapMaybe)
+import           Data.Monoid
 import qualified Data.Text            as T
 import qualified Data.Text.Encoding   as TE
 import           PureScript.Ide.Types
 import           Text.Regex.TDFA      ((=~))
 
 
-type ScoredCompletion = (Double, Completion)
+type ScoredCompletion = (Completion, Double)
 
 -- | Matches any occurence of the search string with intersections
 -- |
@@ -22,21 +23,21 @@ flexMatcher :: T.Text -> Matcher
 flexMatcher pattern = mkMatcher (flexMatch pattern)
 
 mkMatcher :: ([Completion] -> [ScoredCompletion]) -> Matcher
-mkMatcher matcher = Matcher $ fmap snd . sortCompletions . matcher
-
+mkMatcher matcher = Matcher . Endo  $ fmap fst . sortCompletions . matcher
 
 runMatcher :: Matcher -> [Completion] -> [Completion]
-runMatcher (Matcher m) = m
+runMatcher (Matcher m)= appEndo m
 
 sortCompletions :: [ScoredCompletion] -> [ScoredCompletion]
-sortCompletions = sortBy (flip compare `on` fst)
+sortCompletions = sortBy (flip compare `on` snd)
 
 flexMatch :: T.Text -> [Completion] -> [ScoredCompletion]
 flexMatch pattern = mapMaybe (flexRate pattern)
 
 flexRate :: T.Text -> Completion -> Maybe ScoredCompletion
-flexRate pattern c@(Completion (_,ident,_)) =
-    (,) <$> flexScore pattern ident <*> pure c
+flexRate pattern c@(Completion (_,ident,_)) = do
+    score <- flexScore pattern ident
+    return (c, score)
 
 -- FlexMatching ala Sublime.
 -- Borrowed from: http://cdewaka.com/2013/06/fuzzy-pattern-matching-in-haskell/
@@ -51,7 +52,9 @@ flexScore pat str =
         (-1,0) -> Nothing
         (start,len) -> Just $ calcScore start (start + len)
   where
-    Just (first, pattern) = T.uncons pat
+    Just (first,pattern) = T.uncons pat
+    -- This just interleaves the search string with .*
+    -- abcd -> a.*b.*c.*d
     pat' = first `T.cons` T.concatMap (T.snoc ".*") pattern
     calcScore start end =
         100.0 / fromIntegral ((1 + start) * (end - start + 1))

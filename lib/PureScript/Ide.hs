@@ -73,12 +73,10 @@ loadModulesAndDeps :: [ModuleIdent] -> [ModuleIdent] -> PscIde (Either Error Suc
 loadModulesAndDeps mods deps = do
     r1 <- mapM loadModule mods
     r2 <- mapM loadModuleDependencies deps
-    return $
-        TextResult <$>
-        liftM2
-            (\x y -> x <> ", " <> y)
-            (T.concat <$> sequence r1)
-            (T.concat <$> sequence r2)
+    return $ do
+        moduleResults <- fmap T.concat (sequence r1)
+        dependencyResults <- fmap T.concat (sequence r2)
+        return (TextResult (moduleResults <> ", " <> dependencyResults))
 
 loadModuleDependencies :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModuleDependencies moduleName = do
@@ -94,7 +92,9 @@ loadModule :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModule mn = do
     path <- liftIO $ filePathFromModule mn
     case path of
-        Right p -> loadExtern p >> return (Right $ "Loaded extern file at: " <> T.pack p)
+        Right p -> do
+          _ <- loadExtern p
+          return (Right $ "Loaded extern file at: " <> T.pack p)
         Left err -> return (Left err)
 
 filePathFromModule :: ModuleIdent -> IO (Either Error FilePath)

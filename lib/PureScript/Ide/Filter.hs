@@ -1,23 +1,28 @@
 module PureScript.Ide.Filter
        (moduleFilter, prefixFilter, equalityFilter, dependencyFilter,
-        runFilter)
+        runFilter, applyFilters)
        where
 
-import           Data.Maybe           (mapMaybe, listToMaybe)
+import           Data.Foldable
+import           Data.Maybe           (listToMaybe, mapMaybe)
+import           Data.Monoid
 import           Data.Text            (Text, isPrefixOf)
 import           PureScript.Ide.Types
+
+mkFilter :: ([Module] -> [Module]) -> Filter
+mkFilter = Filter . Endo
 
 -- | Only keeps the given Modules
 moduleFilter :: [ModuleIdent] -> Filter
 moduleFilter =
-    Filter . moduleFilter'
+    mkFilter . moduleFilter'
 
 moduleFilter' :: [ModuleIdent] -> [Module] -> [Module]
 moduleFilter' moduleIdents = filter (flip elem moduleIdents . fst)
 
 -- | Only keeps the given Modules and all of their dependencies
 dependencyFilter :: [ModuleIdent] -> Filter
-dependencyFilter = Filter . dependencyFilter'
+dependencyFilter = mkFilter . dependencyFilter'
 
 dependencyFilter' :: [ModuleIdent] -> [Module] -> [Module]
 dependencyFilter' moduleIdents mods =
@@ -39,8 +44,8 @@ dependencyFilter' moduleIdents mods =
 
 -- | Only keeps Identifiers that start with the given prefix
 prefixFilter :: Text -> Filter
-prefixFilter "" = Filter id
-prefixFilter t = Filter $ identFilter prefix t
+prefixFilter "" = mkFilter id
+prefixFilter t = mkFilter $ identFilter prefix t
   where
     prefix :: ExternDecl -> Text -> Bool
     prefix (FunctionDecl name _) search = search `isPrefixOf` name
@@ -51,7 +56,7 @@ prefixFilter t = Filter $ identFilter prefix t
 
 -- | Only keeps Identifiers that are equal to the search string
 equalityFilter :: Text -> Filter
-equalityFilter = Filter . identFilter equality
+equalityFilter = mkFilter . identFilter equality
   where
     equality :: ExternDecl -> Text -> Bool
     equality (FunctionDecl name _) prefix = prefix == name
@@ -68,4 +73,7 @@ identFilter predicate search =
         (moduleIdent, filter (`predicate` search) decls)
 
 runFilter :: Filter -> [Module] -> [Module]
-runFilter (Filter f) = f
+runFilter (Filter f)= appEndo f
+
+applyFilters :: [Filter] -> [Module] -> [Module]
+applyFilters = runFilter . fold

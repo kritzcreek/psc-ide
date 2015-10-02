@@ -1,8 +1,10 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module PureScript.Ide.Types where
 
 import           Control.Monad
 import           Data.Aeson
 import           Data.Map.Lazy as M
+import           Data.Monoid
 import           Data.Text     (Text ())
 
 type ModuleIdent = Text
@@ -39,31 +41,29 @@ newtype Completion =
     deriving (Show,Eq)
 
 instance FromJSON Completion where
-  parseJSON (Object o) = do
-    m <- o .: "module"
-    d <- o .: "identifier"
-    t <- o .: "type"
-    return $ Completion (m, d, t)
-  parseJSON _ = mzero
+    parseJSON (Object o) = do
+        m <- o .: "module"
+        d <- o .: "identifier"
+        t <- o .: "type"
+        return $ Completion (m, d, t)
+    parseJSON _ = mzero
 
 instance ToJSON Completion where
-  toJSON (Completion (m, d, t)) =
-    object ["module" .= m, "identifier" .= d, "type" .= t]
+    toJSON (Completion (m,d,t)) =
+        object ["module" .= m, "identifier" .= d, "type" .= t]
 
-data Success =
-  CompletionResult [Completion]
-  | TextResult Text
-    deriving(Show, Eq)
+data Success
+    = CompletionResult [Completion]
+    | TextResult Text
+    deriving (Show,Eq)
 
 encodeSuccess :: (ToJSON a) => a -> Value
-encodeSuccess res = object
-                    [
-                      "resultType" .= ("success" :: Text),
-                      "result" .= res
-                    ]
-instance ToJSON Success where
-  toJSON (CompletionResult cs) = encodeSuccess cs
-  toJSON (TextResult t) = encodeSuccess t
+encodeSuccess res =
+    object ["resultType" .= ("success" :: Text), "result" .= res]
 
-newtype Filter  = Filter ([Module] -> [Module])
-newtype Matcher = Matcher ([Completion] -> [Completion])
+instance ToJSON Success where
+    toJSON (CompletionResult cs) = encodeSuccess cs
+    toJSON (TextResult t) = encodeSuccess t
+
+newtype Filter = Filter (Endo [Module]) deriving(Monoid)
+newtype Matcher = Matcher (Endo [Completion]) deriving(Monoid)

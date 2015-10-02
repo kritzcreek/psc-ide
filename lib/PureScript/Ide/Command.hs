@@ -40,7 +40,7 @@ instance FromJSON Command where
         params <- o .: "params"
         filters <- params .:? "filters"
         matcher <- params .:? "matcher"
-        return $ Complete (fromMaybe [] filters) (fromMaybe (Matcher id) matcher)
+        return $ Complete (fromMaybe [] filters) (fromMaybe mempty matcher)
       _ -> mzero
 
 instance FromJSON Filter where
@@ -76,4 +76,4 @@ instance FromJSON Matcher where
       Just "helm" -> error "Helm matcher not implemented yet."
       Just "distance" -> error "Distance matcher not implemented yet."
       Just _ -> mzero
-      Nothing -> return $ Matcher id
+      Nothing -> return mempty

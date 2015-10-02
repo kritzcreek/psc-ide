@@ -36,7 +36,7 @@ removeComments :: [Text] -> [Text]
 removeComments = filter (not . T.isPrefixOf "--")
 
 parseExtern :: Text -> Either Error ExternDecl
-parseExtern = first (flip ParseError $ "") . parse parseExternDecl ""
+parseExtern = first (flip ParseError "") . parse parseExternDecl ""
 
 parseExternDecl :: Parser ExternDecl
 parseExternDecl =
@@ -76,7 +76,7 @@ parseHidingImport = do
     string "hiding"
     spaces
     char '('
-    hiddenNames <- sepBy identifier (char ',')
+    _ <- sepBy identifier (char ',') -- hiddenModules
     char ')'
     eof
     return $ Dependency module' []
@@ -86,7 +86,7 @@ parseQualifiedImport = do
     string "import qualified"
     module' <- identifier
     string "as"
-    qualifier <- identifier
+    _ <- identifier -- qualifier
     eof
     return $ Dependency module' []
 
