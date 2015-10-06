@@ -6,7 +6,6 @@ import           Control.Monad.Trans.Either
 import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe)
 import           Data.Monoid
-import           Data.Text                (Text ())
 import qualified Data.Text  as T
 import           PureScript.Ide.Completion
 import           PureScript.Ide.Externs
@@ -32,8 +31,13 @@ findType :: DeclIdent -> [Filter] -> PscIde Success
 findType search filters =
     CompletionResult <$> getExactMatches search filters <$> getAllModules
 
-findPursuitCompletions :: Text -> PscIde [Completion]
-findPursuitCompletions = liftIO . searchPursuit
+findPursuitCompletions :: PursuitQuery -> PscIde Success
+findPursuitCompletions (PursuitQuery q) =
+    PursuitResult <$> liftIO (searchPursuitForDeclarations q)
+
+findPursuitPackages :: PursuitQuery -> PscIde Success
+findPursuitPackages (PursuitQuery q) =
+  PursuitResult <$> liftIO (findPackagesForModuleIdent q)
 
 loadExtern :: FilePath -> PscIde (Either Error ())
 loadExtern fp = runEitherT $ do

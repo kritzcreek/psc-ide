@@ -1,16 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import           Control.Exception        (bracketOnError)
 import           Control.Monad
-import           Control.Exception         (bracketOnError)
 import           Control.Monad.State.Lazy
-import           Data.Maybe                (fromMaybe)
-import qualified Data.Text                 as T
-import qualified Data.Text.IO              as T
-import           Network                   hiding (socketPort)
-import           Network.BSD               (getProtocolNumber)
-import           Network.Socket            hiding (PortNumber, Type, accept,
-                                            sClose)
+import           Data.Maybe               (fromMaybe)
+import qualified Data.Text                as T
+import qualified Data.Text.IO             as T
+import           Network                  hiding (socketPort)
+import           Network.BSD              (getProtocolNumber)
+import           Network.Socket           hiding (PortNumber, Type, accept,
+                                           sClose)
 import           Options.Applicative
 import           PureScript.Ide
 import           PureScript.Ide.CodecJSON
@@ -91,6 +91,10 @@ handleCommand (Type search filters) =
     Right <$> findType search filters
 handleCommand (Complete filters matcher) =
     Right <$> findCompletions filters matcher
+handleCommand (Pursuit query Package) =
+    Right <$> findPursuitPackages query
+handleCommand (Pursuit query Identifier) =
+    Right <$> findPursuitCompletions query
 handleCommand List =
     Right <$> printModules
 handleCommand Cwd =
