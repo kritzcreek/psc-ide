@@ -24,6 +24,7 @@ library
                        , PureScript.Ide.Matcher
                        , PureScript.Ide.Filter
                        , PureScript.Ide.Types
+                       , PureScript.Ide.SourceFile
   default-language:      Haskell2010
   build-depends:         aeson
                        , base >= 4.7 && < 5
@@ -39,6 +40,7 @@ library
                        , regex-tdfa
                        , text
                        , wreq
+                       , purescript
   default-extensions:    OverloadedStrings
   ghc-options:         -O2
 
