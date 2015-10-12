@@ -37,7 +37,7 @@ findPursuitCompletions (PursuitQuery q) =
 
 findPursuitPackages :: PursuitQuery -> PscIde Success
 findPursuitPackages (PursuitQuery q) =
-  PursuitResult <$> liftIO (findPackagesForModuleIdent q)
+    PursuitResult <$> liftIO (findPackagesForModuleIdent q)
 
 loadExtern :: FilePath -> PscIde (Either Error ())
 loadExtern fp = runEitherT $ do
@@ -53,10 +53,10 @@ loadExtern fp = runEitherT $ do
 
 getDependenciesForModule :: ModuleIdent -> PscIde (Maybe [ModuleIdent])
 getDependenciesForModule m = do
-  mDecls <- M.lookup m . pscStateModules <$> get
-  return $ mapMaybe getDependencyName <$> mDecls
-  where getDependencyName (Dependency dependencyName _) = Just dependencyName
-        getDependencyName _ = Nothing
+    mDecls <- M.lookup m . pscStateModules <$> get
+    return $ mapMaybe getDependencyName <$> mDecls
+    where getDependencyName (Dependency dependencyName _) = Just dependencyName
+          getDependencyName _ = Nothing
 
 moduleFromDecls :: [ExternDecl] -> Either Error Module
 moduleFromDecls decls@(ModuleDecl name _:_) = Right (name, decls)
@@ -64,8 +64,8 @@ moduleFromDecls _ = Left (GeneralError "An externs File didn't start with a modu
 
 stateFromDecls :: [[ExternDecl]] -> Either Error PscState
 stateFromDecls externs= do
-  modules <- mapM moduleFromDecls externs
-  return $ PscState (M.fromList modules)
+    modules <- mapM moduleFromDecls externs
+    return $ PscState (M.fromList modules)
 
 printModules :: PscIde Success
 printModules =
