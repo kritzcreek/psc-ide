@@ -47,15 +47,15 @@ getDeclPosition m ident =
      where match q (D.PositionedDeclaration ss _ decl) = if go q decl then Just ss else Nothing
            match _ _ = Nothing
 
-           go q (D.DataDeclaration _ name _ constructors) =
+           go q (D.DataDeclaration _ name _ constructors)  =
              properEqual name q || any (\(x,_) -> properEqual x q) constructors
-           go q (D.DataBindingGroupDeclaration decls)     = any (go q) decls
-           go q (D.TypeSynonymDeclaration name _ _)       = properEqual name q
-           go q (D.TypeDeclaration ident' _)              = identEqual ident' q
-           go q (D.ValueDeclaration ident' _ _ _)         = identEqual ident' q
-           go q (D.ExternDeclaration ident' _)            = identEqual ident' q
-           go q (D.ExternDataDeclaration name _)          = properEqual name q
-           go q (D.TypeClassDeclaration name _ _ members) =
+           go q (D.DataBindingGroupDeclaration decls)      = any (go q) decls
+           go q (D.TypeSynonymDeclaration name _ _)        = properEqual name q
+           go q (D.TypeDeclaration ident' _)               = identEqual ident' q
+           go q (D.ValueDeclaration ident' _ _ _)          = identEqual ident' q
+           go q (D.ExternDeclaration ident' _)             = identEqual ident' q
+           go q (D.ExternDataDeclaration name _)           = properEqual name q
+           go q (D.TypeClassDeclaration name _ _ members)  =
              properEqual name q || any (go q . unwrapPositioned) members
            go q (D.TypeInstanceDeclaration ident' _ _ _ _) =
              identEqual ident' q
