@@ -20,6 +20,9 @@ instance showPSType :: Show PSType where
   show Package = "package"
   show Ident   = "completion"
 
+class Dummy a where
+  typeclassFun :: a -> String
+
 instance encodePSType :: EncodeJson PSType where
   encodeJson = encodeJson <<< show
 
