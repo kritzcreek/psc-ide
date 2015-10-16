@@ -1,13 +1,16 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards            #-}
 
 module PureScript.Ide.Types where
 
 import           Control.Monad
 import           Data.Aeson
-import           Data.Map.Lazy as M
+import           Data.Map.Lazy                        as M
+import           Data.Maybe                           (maybeToList)
 import           Data.Monoid
-import           Data.Text     (Text ())
+import           Data.Text                            (Text ())
+import qualified Language.PureScript.AST.Declarations as D
+import qualified Language.PureScript.Names            as N
 
 type ModuleIdent = Text
 type DeclIdent   = Text
@@ -42,6 +45,30 @@ newtype Completion =
     Completion (ModuleIdent, DeclIdent, Type)
     deriving (Show,Eq)
 
+data ModuleImport = ModuleImport {
+  importModuleName :: ModuleIdent,
+  importType       :: D.ImportDeclarationType,
+  importQualifier  :: Maybe Text} deriving(Show)
+
+instance ToJSON ModuleImport where
+  toJSON (ModuleImport mn D.Implicit qualifier) =
+    object $  ["module" .= mn
+              , "importType" .= ("implicit" :: Text)
+              ] ++ fmap (\x -> "qualifier" .= x) (maybeToList qualifier)
+  toJSON (ModuleImport mn (D.Explicit refs) _) =
+    object ["module" .= mn
+           , "importType" .= ("explicit" :: Text)
+           , "identifiers" .= (identifierFromDeclarationRef <$> refs)]
+  toJSON (ModuleImport mn (D.Hiding refs) _) =
+    object ["module" .= mn
+           , "importType" .= ("hiding" :: Text)
+           , "identifiers" .= (identifierFromDeclarationRef <$> refs)]
+
+identifierFromDeclarationRef :: D.DeclarationRef -> String
+identifierFromDeclarationRef (D.TypeRef name _) = N.runProperName name
+identifierFromDeclarationRef (D.ValueRef ident) = N.runIdent ident
+identifierFromDeclarationRef _ = ""
+
 instance FromJSON Completion where
     parseJSON (Object o) = do
         m <- o .: "module"
@@ -58,7 +85,8 @@ data Success =
   CompletionResult [Completion]
   | TextResult Text
   | PursuitResult [PursuitResponse]
-    deriving(Show, Eq)
+  | ImportList [ModuleImport]
+  deriving(Show)
 
 encodeSuccess :: (ToJSON a) => a -> Value
 encodeSuccess res =
@@ -68,6 +96,7 @@ instance ToJSON Success where
   toJSON (CompletionResult cs) = encodeSuccess cs
   toJSON (TextResult t) = encodeSuccess t
   toJSON (PursuitResult resp) = encodeSuccess resp
+  toJSON (ImportList decls) = encodeSuccess decls
 
 newtype Filter = Filter (Endo [Module]) deriving(Monoid)
 newtype Matcher = Matcher (Endo [Completion]) deriving(Monoid)

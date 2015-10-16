@@ -12,6 +12,7 @@ import           PureScript.Ide.Externs
 import           PureScript.Ide.Pursuit
 import           PureScript.Ide.Error
 import           PureScript.Ide.Types
+import           PureScript.Ide.SourceFile
 import           System.FilePath
 import           System.Directory
 
@@ -70,6 +71,11 @@ stateFromDecls externs= do
 printModules :: PscIde Success
 printModules =
     TextResult . T.intercalate ", " . M.keys . pscStateModules <$> get
+
+importsForFile :: FilePath -> PscIde (Either Error Success)
+importsForFile fp = do
+  imports <- liftIO $ getImportsForFile fp
+  return $ ImportList <$> imports
 
 -- | The first argument is a set of modules to load. The second argument
 --   denotes modules for which to load dependencies

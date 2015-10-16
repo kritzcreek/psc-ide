@@ -17,15 +17,29 @@ data Command
                , completeMatcher :: Matcher}
     | Pursuit { pursuitQuery      :: PursuitQuery
               , pursuitSearchType :: PursuitSearchType}
-    | List
+    | List {listType :: ListType}
     | Cwd
     | Quit
+
+data ListType = LoadedModules | Imports FilePath
+
+instance FromJSON ListType where
+  parseJSON = withObject "ListType" $ \o -> do
+    (listType' :: String) <- o .: "type"
+    case listType' of
+      "import" -> do
+        fp <- o .: "file"
+        return (Imports fp)
+      "module" -> return LoadedModules
+      _ -> mzero
 
 instance FromJSON Command where
   parseJSON = withObject "command" $ \o -> do
     (command :: String) <- o .: "command"
     case command of
-      "list" -> return List
+      "list" -> do
+        listType' <- o .:? "params"
+        return $ List (fromMaybe LoadedModules listType')
       "cwd"  -> return Cwd
       "quit" -> return Quit
       "load" -> do
