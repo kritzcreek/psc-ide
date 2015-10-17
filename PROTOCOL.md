@@ -134,16 +134,90 @@ The `pursuit` command looks up the packages/completions for a given identifier f
 ]
 ```
 
-### List/Cwd/Quit
-`list` returns all loaded modules.
+### List
+#### Modules
+`list` lists all loaded modules.
 
+```json
+{
+  "command": "list",
+  "params": {
+    "type": "module"
+  }
+}
+```
+
+#### Response:
+The list modules commands returns a list of strings.
+
+#### Imports
+
+The list commmand can also list the imports for a given file.
+
+```json
+{
+  "command": "list",
+  "params": {
+    "type": "import",
+    "file": "/home/kritzcreek/Documents/psc-ide/examples/Main.purs"
+  }
+}
+```
+
+#### Response:
+
+The list import command returns a list of imports where imports are of the following form:
+
+Implicit Import(`import Data.Array`):
+```json
+[
+  {
+  "module": "Data.Array",
+  "importType": "implicit"
+  }
+]
+```
+
+Implicit qualified Import(`import qualified Data.Array as A`):
+```json
+[
+  {
+  "module": "Data.Array",
+  "importType": "implicit",
+  "qualifier": "A"
+  }
+]
+```
+
+Explicit Import(`import Data.Array (filter, filterM, join)`):
+```json
+[
+  {
+  "module": "Data.Array",
+  "importType": "explicit",
+  "identifiers": ["filter", "filterM", "join"]
+  }
+]
+```
+
+Hiding Import(`import Data.Array hiding (filter, filterM, join)`):
+```json
+[
+  {
+  "module": "Data.Array",
+  "importType": "hiding",
+  "identifiers": ["filter", "filterM", "join"]
+  }
+]
+```
+### Cwd/Quit
 `cwd` returns the working directory of the server(should be your project root).
 
 `quit` quits the server.
 
 ```json
 {
-  "command": "list|cwd|quit"
+  "command": "cwd|quit"
 }
 ```
 
