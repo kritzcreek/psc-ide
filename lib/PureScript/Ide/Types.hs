@@ -67,6 +67,7 @@ instance ToJSON ModuleImport where
 identifierFromDeclarationRef :: D.DeclarationRef -> String
 identifierFromDeclarationRef (D.TypeRef name _) = N.runProperName name
 identifierFromDeclarationRef (D.ValueRef ident) = N.runIdent ident
+identifierFromDeclarationRef (D.TypeClassRef name) = N.runProperName name
 identifierFromDeclarationRef _ = ""
 
 instance FromJSON Completion where
