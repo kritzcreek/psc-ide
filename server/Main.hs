@@ -95,9 +95,10 @@ handleCommand (Pursuit query Package) =
     Right <$> findPursuitPackages query
 handleCommand (Pursuit query Identifier) =
     Right <$> findPursuitCompletions query
-handleCommand List =
+handleCommand (List LoadedModules) =
     Right <$> printModules
+handleCommand (List (Imports fp)) =
+    importsForFile fp
 handleCommand Cwd =
     Right . TextResult . T.pack <$> liftIO getCurrentDirectory
 handleCommand Quit = Right <$> liftIO exitSuccess
-
