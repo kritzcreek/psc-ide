@@ -100,7 +100,7 @@ loadModuleDependencies moduleName = do
 
 loadModule :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModule mn = do
-    path <- liftIO $ filePathFromModule mn
+    path <- liftIO $ filePathFromModule' "json" mn
     case path of
         Right p -> do
           _ <- loadExtern p
@@ -108,9 +108,12 @@ loadModule mn = do
         Left err -> return (Left err)
 
 filePathFromModule :: ModuleIdent -> IO (Either Error FilePath)
-filePathFromModule moduleName = do
+filePathFromModule = filePathFromModule' "purs"
+
+filePathFromModule' :: String -> ModuleIdent -> IO (Either Error FilePath)
+filePathFromModule' extension moduleName = do
     cwd <- getCurrentDirectory
-    let path = cwd </> "output" </> T.unpack moduleName </> "externs.purs"
+    let path = cwd </> "output" </> T.unpack moduleName </> "externs." ++ extension
     ex <- doesFileExist path
     return $
         if ex

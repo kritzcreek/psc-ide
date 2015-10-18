@@ -27,5 +27,5 @@ completionsFromModules = foldMap completionFromModule
 completionFromDecl :: ModuleIdent -> ExternDecl -> Maybe Completion
 completionFromDecl mi (FunctionDecl name type') = Just (Completion (mi, name, type'))
 completionFromDecl mi (DataDecl name kind)      = Just (Completion (mi, name, kind))
-completionFromDecl mi (ModuleDecl name _)       = Just (Completion ("module", name, "module"))
-completionFromDecl mi _                         = Nothing
+completionFromDecl _ (ModuleDecl name _)        = Just (Completion ("module", name, "module"))
+completionFromDecl _ _                          = Nothing

@@ -3,18 +3,21 @@
 
 module PureScript.Ide.Pursuit where
 
-import qualified Control.Exception      as E
-import           Control.Lens
+import qualified Control.Exception    as E
+import           Control.Lens         hiding (noneOf)
 import           Control.Monad
 import           Data.Aeson
 import           Data.Aeson.Lens
+import           Data.ByteString.Lazy (ByteString)
 import           Data.Maybe
-import           Data.Text              (Text)
-import qualified Data.Text              as T
-import           Network.HTTP.Client    (HttpException (StatusCodeException))
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import           Network.HTTP.Client  (HttpException (StatusCodeException))
 import           Network.Wreq
-import           PureScript.Ide.Externs (typeParse)
 import           PureScript.Ide.Types
+
+import           Text.Parsec
+import           Text.Parsec.Text
 
 instance FromJSON PursuitResponse where
     parseJSON (Object o) = do
@@ -31,7 +34,7 @@ instance FromJSON PursuitResponse where
                     }
             "declaration" -> do
                 moduleName <- info .: "module"
-                Right (ident,declType) <- typeParse <$> o .: "text"
+                Right (ident, declType) <- typeParse <$> o .: "text"
                 return
                     DeclarationResponse
                     { declarationResponseType = declType
@@ -51,6 +54,8 @@ jsonOpts q =
 
 -- We need to remove trailing dots because Pursuit will return a 400 otherwise
 -- TODO: remove this when the issue is fixed at Pursuit
+
+queryPursuit :: Text -> IO (Response ByteString)
 queryPursuit q = getWith (jsonOpts (T.dropWhileEnd (== '.') q)) queryUrl
 
 handler :: HttpException -> IO [a]
@@ -76,3 +81,26 @@ findPackagesForModuleIdent query =
   where
     isModuleResponse (Success a@(ModuleResponse{})) = Just a
     isModuleResponse _ = Nothing
+
+parseType :: Parser (String, String)
+parseType = do
+  name <- identifier
+  _ <- string "::"
+  spaces
+  type' <- many1 anyChar
+  return (T.unpack name, type')
+
+typeParse :: Text -> Either Text (Text, Text)
+typeParse t = case parse parseType "" t of
+  Right (x,y) -> Right (T.pack x, T.pack y)
+  Left err -> Left (T.pack (show err))
+
+identifier :: Parser Text
+identifier = do
+  spaces
+  ident <-
+      -- necessary for being able to parse the following ((++), concat)
+      between (char '(') (char ')') (many1 (noneOf ", )")) <|>
+      many1 (noneOf ", )")
+  spaces
+  return (T.pack ident)

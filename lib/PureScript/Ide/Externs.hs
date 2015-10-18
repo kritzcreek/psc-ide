@@ -1,4 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
 module PureScript.Ide.Externs
@@ -8,181 +10,64 @@ module PureScript.Ide.Externs
     DeclIdent,
     Type,
     Fixity(..),
-    readExternFile,
-    parseExtern,
-    parseExternDecl,
-    typeParse
+    readExternFile
   ) where
 
-import           Data.Char            (digitToInt)
-import           Data.Text            (Text ())
-import qualified Data.Text            as T
-import qualified Data.Text.IO         as T
+
+import           Data.Maybe                  (mapMaybe)
+import qualified Data.Text                   as T
+import qualified Data.Text.IO                as T
+import qualified Language.PureScript.Externs as PE
+import qualified Language.PureScript.Names   as N
+import qualified Language.PureScript.Pretty  as PP
+import           PureScript.Ide.CodecJSON
+import           PureScript.Ide.Error        (Error (..))
 import           PureScript.Ide.Types
-import           Text.Parsec
-import           Text.Parsec.Text
-import           PureScript.Ide.Error   (Error(..), first)
 
--- | Parses an extern file into the ExternDecl format.
 readExternFile :: FilePath -> IO (Either Error [ExternDecl])
-readExternFile fp = readExtern . T.lines <$> T.readFile fp
+readExternFile fp = do
+   (parseResult :: Maybe PE.ExternsFile) <- decodeT <$> T.readFile fp
+   case parseResult of
+     Nothing -> return (Left (GeneralError "Parsing an extern failed"))
+     Just externs -> return (Right (convertExterns externs))
 
-readExtern :: [Text] -> Either Error [ExternDecl]
-readExtern strs = mapM parseExtern clean
+moduleNameToText :: N.ModuleName -> T.Text
+moduleNameToText = T.pack . N.runModuleName
+
+properNameToText :: N.ProperName -> T.Text
+properNameToText = T.pack . N.runProperName
+
+identToText :: N.Ident -> T.Text
+identToText  = T.pack . N.runIdent
+
+convertExterns :: PE.ExternsFile -> [ExternDecl]
+convertExterns ef = decls
   where
-    clean = removeComments strs
+    decls = ModuleDecl (moduleNameToText (PE.efModuleName ef)) []
+            : importDecls ++ otherDecls
+    importDecls = convertImport <$> PE.efImports ef
+    -- Ignoring operator fixities for now since we're not using them
+    -- operatorDecls = convertOperator <$> PE.efFixities ef
+    otherDecls = mapMaybe convertDecl (PE.efDeclarations ef)
 
-removeComments :: [Text] -> [Text]
-removeComments = filter (not . T.isPrefixOf "--")
+convertImport :: PE.ExternsImport -> ExternDecl
+convertImport ei = Dependency (moduleNameToText (PE.eiModule ei)) []
 
-parseExtern :: Text -> Either Error ExternDecl
-parseExtern = first (flip ParseError "") . parse parseExternDecl ""
-
-parseExternDecl :: Parser ExternDecl
-parseExternDecl =
-    try parseDependency <|> try parseFixityDecl <|> try parseFunctionDecl <|>
-    try parseDataDecl <|>
-    try parseModuleDecl <|>
-    try parseTypeDecl <|>
-    try parseNewtypeDecl <|>
-    return (ModuleDecl "" [])
-
-parseDependency :: Parser ExternDecl
-parseDependency =
-    try parseQualifiedImport <|> try parseHidingImport <|> try parseSpecifyingImport
-    <|> parseSimpleImport
-
-parseSimpleImport :: Parser ExternDecl
-parseSimpleImport = do
-    string "import"
-    module' <- identifier
-    eof
-    return $ Dependency module' []
-
-parseSpecifyingImport :: Parser ExternDecl
-parseSpecifyingImport = do
-    string "import"
-    module' <- identifier
-    char '('
-    names <- sepBy identifier (char ',')
-    char ')'
-    eof
-    return $ Dependency module' names
-
-parseHidingImport :: Parser ExternDecl
-parseHidingImport = do
-    string "import"
-    module' <- identifier
-    string "hiding"
-    spaces
-    char '('
-    _ <- sepBy identifier (char ',') -- hiddenModules
-    char ')'
-    eof
-    return $ Dependency module' []
-
-parseQualifiedImport :: Parser ExternDecl
-parseQualifiedImport = do
-    string "import qualified"
-    module' <- identifier
-    string "as"
-    _ <- identifier -- qualifier
-    eof
-    return $ Dependency module' []
-
-parseFixityDecl :: Parser ExternDecl
-parseFixityDecl = do
-    fixity <- parseFixity
-    spaces
-    priority <- digitToInt <$> digit
-    spaces
-    symbol <- many1 anyChar
-    eof
-    return (FixityDeclaration fixity priority (T.pack symbol))
-
-parseFixity :: Parser Fixity
-parseFixity =
-    (try (string "infixr") >> return Infixr) <|>
-    (try (string "infixl") >> return Infixl) <|>
-    (string "infix" >> return Infix)
-
-parseFunctionDecl :: Parser ExternDecl
-parseFunctionDecl = do
-    string "foreign import"
-    spaces
-    (name, type') <- parseType
-    eof
-    return (FunctionDecl (T.pack name) (T.pack type'))
-
-parseDataDecl :: Parser ExternDecl
-parseDataDecl = parseDataDecl' <|> parseForeignDataDecl
-
-parseDataDecl' :: Parser ExternDecl
-parseDataDecl' = do
-  string "data"
-  ident <- identifier
-  kind <- many anyChar
-  return (DataDecl ident (T.pack kind))
-
-parseForeignDataDecl :: Parser ExternDecl
-parseForeignDataDecl = do
-  string "foreign import data"
-  spaces
-  (name, kind) <- parseType
-  eof
-  return $ DataDecl (T.pack name) (T.pack kind)
-
-parseModuleDecl :: Parser ExternDecl
-parseModuleDecl = do
-  string "module"
-  name <- identifier
-  exports <- identifierList
-  return (ModuleDecl name exports)
-
-parseNewtypeDecl :: Parser ExternDecl
-parseNewtypeDecl = do
-  string "newtype"
-  name <- identifier
-  _ <- many (noneOf "=")
-  char '='
-  identifier
-  type' <- many anyChar
-  eof
-  return (DataDecl name (T.pack type'))
-
-parseTypeDecl :: Parser ExternDecl
-parseTypeDecl = do
-  string "type"
-  name <- identifier
-  _ <- many (noneOf "=")
-  char '='
-  spaces
-  type' <- many anyChar
-  eof
-  return (DataDecl name (T.pack type'))
-
-parseType :: Parser (String, String)
-parseType = do
-  name <- identifier
-  string "::"
-  spaces
-  type' <- many1 anyChar
-  return (T.unpack name, type')
-
-typeParse :: Text -> Either Text (Text, Text)
-typeParse t = case parse parseType "" t of
-  Right (x,y) -> Right (T.pack x, T.pack y)
-  Left err -> Left (T.pack (show err))
-
-identifierList :: Parser [Text]
-identifierList = between (char '(') (char ')') (sepBy identifier (char ','))
-
-identifier :: Parser Text
-identifier = do
-    spaces
-    ident <-
-        -- necessary for being able to parse the following ((++), concat)
-        between (char '(') (char ')') (many1 (noneOf ", )")) <|>
-        many1 (noneOf ", )")
-    spaces
-    return (T.pack ident)
+convertDecl :: PE.ExternsDeclaration -> Maybe ExternDecl
+convertDecl (PE.EDType{..}) = Just $
+  DataDecl
+  (properNameToText edTypeName)
+  (T.pack (PP.prettyPrintKind edTypeKind))
+convertDecl (PE.EDTypeSynonym{..}) = Just $
+  DataDecl
+  (properNameToText edTypeSynonymName)
+  (T.pack (PP.prettyPrintType edTypeSynonymType))
+convertDecl (PE.EDDataConstructor{..}) = Just $
+  DataDecl
+  (properNameToText edDataCtorName)
+  (T.pack (PP.prettyPrintType edDataCtorType))
+convertDecl (PE.EDValue{..}) = Just $
+  FunctionDecl
+  (identToText edValueName)
+  (T.pack (PP.prettyPrintType edValueType))
+convertDecl _ = Nothing

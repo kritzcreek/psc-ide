@@ -75,13 +75,13 @@ startServer port debug st_in =
         case decodeT cmd of
             Just cmd' -> do
                 result <- handleCommand cmd'
-                when debug $ liftIO $ T.putStrLn ("Answer was: " <> (T.pack . show $ result))
+                when debug $ liftIO $ T.putStrLn ("Answer was: " <> (T.pack . show $ result)) >> hFlush stdout
                 case result of
                   -- What function can I use to clean this up?
                   Right r  -> liftIO $ T.hPutStrLn h (encodeT r)
                   Left err -> liftIO $ T.hPutStrLn h (encodeT err)
             Nothing ->
-                liftIO $ T.hPutStrLn h $ encodeT (GeneralError "Error parsing Command.")
+                liftIO $ T.hPutStrLn h (encodeT (GeneralError "Error parsing Command.")) >> hFlush stdout
         liftIO $ hClose h
 
 handleCommand :: Command -> PscIde (Either Error Success)
