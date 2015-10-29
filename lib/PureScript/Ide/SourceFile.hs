@@ -1,23 +1,16 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell #-}
 module PureScript.Ide.SourceFile where
 
-import qualified Data.Aeson as A
-import Data.Aeson ((.:))
-import Data.Aeson.TH
-import Data.Maybe (mapMaybe, listToMaybe)
-import qualified Data.Text as T
-import PureScript.Ide.Error
-import PureScript.Ide.Types
-import qualified Language.PureScript.Parser as P
+import           Data.Maybe                           (mapMaybe)
+import           Data.Monoid
+import qualified Data.Text                            as T
 import qualified Language.PureScript.AST.Declarations as D
-import qualified Language.PureScript.Comments as C
--- import qualified Language.PureScript.AST.Traversals as T
-import qualified Language.PureScript.AST.SourcePos as SP
-import qualified Language.PureScript.Names as N
--- import qualified Language.PureScript.Types as Ty
-import System.Directory
+import qualified Language.PureScript.Parser           as P
+import           PureScript.Ide.Error
+import           PureScript.Ide.Types
+import qualified Language.PureScript.AST.SourcePos    as SP
+import qualified Language.PureScript.Names            as N
+import           System.Directory
 
 parseModuleFromFile :: FilePath -> IO (Either Error D.Module)
 parseModuleFromFile fp = do
@@ -33,10 +26,10 @@ parseModuleFromFile fp = do
 -- data Module = Module SourceSpan [Comment] ModuleName [Declaration] (Maybe [DeclarationRef])
 
 getDeclarations :: D.Module -> [D.Declaration]
-getDeclarations (D.Module sourceSpan comments moduleName' declarations exports) = declarations
+getDeclarations (D.Module _ _ _ declarations _) = declarations
 
 getImports :: D.Module -> [D.Declaration]
-getImports (D.Module sourceSpan comments moduleName' declarations exports) =
+getImports (D.Module _ _ _ declarations _) =
   mapMaybe isImport declarations
   where
     isImport (D.PositionedDeclaration _ _ (i@D.ImportDeclaration{})) = Just i
@@ -47,18 +40,21 @@ getImportsForFile fp = do
   module' <- parseModuleFromFile fp
   let imports = getImports <$> module'
   return (fmap (mkModuleImport . unwrapPositionedImport) <$> imports)
-  where mkModuleImport (D.ImportDeclaration mn importType qualifier) =
-          ModuleImport (T.pack (show mn)) importType (T.pack . show <$> qualifier)
+  where mkModuleImport (D.ImportDeclaration mn importType' qualifier) =
+          ModuleImport
+            (T.pack (N.runModuleName mn))
+            importType'
+            (T.pack . N.runModuleName <$> qualifier)
         mkModuleImport _ = error "Shouldn't have gotten anything but Imports here"
-        unwrapPositionedImport (D.ImportDeclaration mn importType qualifier) =
-          D.ImportDeclaration mn (unwrapImportType importType) qualifier
+        unwrapPositionedImport (D.ImportDeclaration mn importType' qualifier) =
+          D.ImportDeclaration mn (unwrapImportType importType') qualifier
         unwrapPositionedImport x = x
         unwrapImportType (D.Explicit decls) = D.Explicit (map unwrapPositionedRef decls)
         unwrapImportType (D.Hiding decls)   = D.Hiding (map unwrapPositionedRef decls)
         unwrapImportType D.Implicit         = D.Implicit
 
 getPositionedImports :: D.Module -> [D.Declaration]
-getPositionedImports (D.Module sourceSpan comments moduleName' declarations exports) =
+getPositionedImports (D.Module _ _ _ declarations _) =
   mapMaybe isImport declarations
   where
     isImport i@(D.PositionedDeclaration _ _ (D.ImportDeclaration{})) = Just i
@@ -75,9 +71,11 @@ unwrapPositionedRef x = x
 getDeclPosition :: D.Module -> String -> Maybe SP.SourceSpan
 getDeclPosition m ident =
   let decls = getDeclarations m
-  in listToMaybe (mapMaybe (match ident) decls)
-     where match q (D.PositionedDeclaration ss _ decl) = if go q decl then Just ss else Nothing
-           match _ _ = Nothing
+  in getFirst (foldMap (match ident) decls)
+     where match q (D.PositionedDeclaration ss _ decl) = First (if go q decl
+                                                                then Just ss
+                                                                else Nothing)
+           match _ _ = First Nothing
 
            go q (D.DataDeclaration _ name _ constructors)  =
              properEqual name q || any (\(x,_) -> properEqual x q) constructors
@@ -102,25 +100,3 @@ goToDefinition q fp = do
   case m of
     Right module' -> return $ getDeclPosition module' q
     Left _ -> return Nothing
-
--- Only necessary until 0.7.5 is around ---------------------------
-$(deriveJSON (defaultOptions { sumEncoding = ObjectWithSingleField }) ''D.DeclarationRef)
-$(deriveJSON (defaultOptions { sumEncoding = ObjectWithSingleField }) ''D.ImportDeclarationType)
-
-$(deriveJSON (defaultOptions { sumEncoding = ObjectWithSingleField }) ''N.Ident)
-$(deriveJSON (defaultOptions { sumEncoding = ObjectWithSingleField }) ''N.ProperName)
-$(deriveJSON (defaultOptions { sumEncoding = ObjectWithSingleField }) ''N.ModuleName)
-
-$(deriveJSON (defaultOptions { sumEncoding = ObjectWithSingleField }) ''C.Comment)
-
-instance A.FromJSON SP.SourceSpan where
-  parseJSON = A.withObject "SourceSpan" $ \o ->
-    SP.SourceSpan  <$>
-      o .: "name"  <*>
-      o .: "start" <*>
-      o .: "end"
-
-instance A.FromJSON SP.SourcePos where
-  parseJSON arr = do
-    [line, col] <- A.parseJSON arr
-    return $ SP.SourcePos line col

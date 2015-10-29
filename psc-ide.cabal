@@ -28,6 +28,7 @@ library
   default-language:      Haskell2010
   build-depends:         aeson
                        , base >= 4.7 && < 5
+                       , bytestring
                        , containers
                        , directory
                        , either
@@ -37,10 +38,10 @@ library
                        , lens-aeson
                        , mtl
                        , parsec
+                       , purescript
                        , regex-tdfa
                        , text
                        , wreq
-                       , purescript
   default-extensions:    OverloadedStrings
   ghc-options:         -O2
 
@@ -75,8 +76,7 @@ test-suite spec
   hs-source-dirs:      test
   default-language:    Haskell2010
   main-is:             Spec.hs
-  other-modules:       PureScript.Ide.ExternsSpec
-                     , PureScript.Ide.FilterSpec
+  other-modules:       PureScript.Ide.FilterSpec
                      , PureScript.Ide.MatcherSpec
   build-depends:       base    >= 4.7 && < 5
                      , psc-ide
