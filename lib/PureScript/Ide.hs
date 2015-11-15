@@ -26,38 +26,33 @@ getAllModules = M.toList . pscStateModules <$> get
 
 findCompletions :: [Filter] -> Matcher -> PscIde Success
 findCompletions filters matcher =
-    CompletionResult <$> getCompletions filters matcher <$> getAllModules
+  CompletionResult <$> getCompletions filters matcher <$> getAllModules
 
 findType :: DeclIdent -> [Filter] -> PscIde Success
 findType search filters =
-    CompletionResult <$> getExactMatches search filters <$> getAllModules
+  CompletionResult <$> getExactMatches search filters <$> getAllModules
 
 findPursuitCompletions :: PursuitQuery -> PscIde Success
 findPursuitCompletions (PursuitQuery q) =
-    PursuitResult <$> liftIO (searchPursuitForDeclarations q)
+  PursuitResult <$> liftIO (searchPursuitForDeclarations q)
 
 findPursuitPackages :: PursuitQuery -> PscIde Success
 findPursuitPackages (PursuitQuery q) =
-    PursuitResult <$> liftIO (findPackagesForModuleIdent q)
+  PursuitResult <$> liftIO (findPackagesForModuleIdent q)
 
 loadExtern :: FilePath -> PscIde (Either Error ())
 loadExtern fp = runEitherT $ do
-    decls          <- EitherT . liftIO $ readExternFile fp
-    (name, decls') <- EitherT . return $ moduleFromDecls decls
-    modify (\x ->
-              x
-              { pscStateModules = M.insert
-                                  name
-                                  decls'
-                                  (pscStateModules x)
-              })
+  decls          <- EitherT (liftIO (readExternFile fp))
+  (name, decls') <- EitherT (return (moduleFromDecls decls))
+  modify (\x ->
+    x { pscStateModules = M.insert name decls' (pscStateModules x)})
 
 getDependenciesForModule :: ModuleIdent -> PscIde (Maybe [ModuleIdent])
 getDependenciesForModule m = do
-    mDecls <- M.lookup m . pscStateModules <$> get
-    return $ mapMaybe getDependencyName <$> mDecls
-    where getDependencyName (Dependency dependencyName _) = Just dependencyName
-          getDependencyName _ = Nothing
+  mDecls <- M.lookup m . pscStateModules <$> get
+  return (mapMaybe getDependencyName <$> mDecls)
+  where getDependencyName (Dependency dependencyName _) = Just dependencyName
+        getDependencyName _ = Nothing
 
 moduleFromDecls :: [ExternDecl] -> Either Error Module
 moduleFromDecls decls@(ModuleDecl name _:_) = Right (name, decls)
@@ -65,60 +60,68 @@ moduleFromDecls _ = Left (GeneralError "An externs File didn't start with a modu
 
 stateFromDecls :: [[ExternDecl]] -> Either Error PscState
 stateFromDecls externs= do
-    modules <- mapM moduleFromDecls externs
-    return $ PscState (M.fromList modules)
+  modules <- mapM moduleFromDecls externs
+  return (PscState (M.fromList modules))
 
 printModules :: PscIde Success
-printModules =
-    TextResult . T.intercalate ", " . M.keys . pscStateModules <$> get
+printModules = do
+  modules <- M.keys . pscStateModules <$> get
+  return (ModuleList modules)
+
+listAvailableModules :: PscIde Success
+listAvailableModules = liftIO $ do
+  cwd <- getCurrentDirectory
+  modules <- getDirectoryContents (cwd </> "output")
+  let cleanedModules = filter (`notElem` [".", ".."]) modules
+  return (ModuleList (map T.pack cleanedModules))
 
 importsForFile :: FilePath -> PscIde (Either Error Success)
 importsForFile fp = do
-  imports <- liftIO $ getImportsForFile fp
-  return $ ImportList <$> imports
+  imports <- liftIO (getImportsForFile fp)
+  return (ImportList <$> imports)
 
 -- | The first argument is a set of modules to load. The second argument
 --   denotes modules for which to load dependencies
 loadModulesAndDeps :: [ModuleIdent] -> [ModuleIdent] -> PscIde (Either Error Success)
 loadModulesAndDeps mods deps = do
-    r1 <- mapM loadModule mods
-    r2 <- mapM loadModuleDependencies deps
-    return $ do
-        moduleResults <- fmap T.concat (sequence r1)
-        dependencyResults <- fmap T.concat (sequence r2)
-        return (TextResult (moduleResults <> ", " <> dependencyResults))
+  r1 <- mapM loadModule mods
+  r2 <- mapM loadModuleDependencies deps
+  return $ do
+    moduleResults <- fmap T.concat (sequence r1)
+    dependencyResults <- fmap T.concat (sequence r2)
+    return (TextResult (moduleResults <> ", " <> dependencyResults))
 
 loadModuleDependencies :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModuleDependencies moduleName = do
-    _ <- loadModule moduleName
-    mDeps <- getDependenciesForModule moduleName
-    case mDeps of
-        Just deps -> do
-            mapM_ loadModule deps
-            return (Right ("Dependencies for " <> moduleName <> " loaded."))
-        Nothing -> return (Left (ModuleNotFound moduleName))
+  _ <- loadModule moduleName
+  mDeps <- getDependenciesForModule moduleName
+  case mDeps of
+    Just deps -> do
+      mapM_ loadModule deps
+      return (Right ("Dependencies for " <> moduleName <> " loaded."))
+    Nothing -> return (Left (ModuleNotFound moduleName))
 
 loadModule :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModule mn = do
-    path <- liftIO $ filePathFromModule' "json" mn
-    case path of
-        Right p -> do
-          _ <- loadExtern p
-          return (Right $ "Loaded extern file at: " <> T.pack p)
-        Left err -> return (Left err)
+  path <- liftIO $ filePathFromModule' "json" mn
+  case path of
+    Right p -> do
+      _ <- loadExtern p
+      return (Right ("Loaded extern file at: " <> T.pack p))
+    Left err -> return (Left err)
 
 filePathFromModule :: ModuleIdent -> IO (Either Error FilePath)
 filePathFromModule = filePathFromModule' "purs"
 
 filePathFromModule' :: String -> ModuleIdent -> IO (Either Error FilePath)
 filePathFromModule' extension moduleName = do
-    cwd <- getCurrentDirectory
-    let path = cwd </> "output" </> T.unpack moduleName </> "externs." ++ extension
-    ex <- doesFileExist path
-    return $
-        if ex
-            then Right path
-            else Left (ModuleFileNotFound moduleName)
+  cwd <- getCurrentDirectory
+  let path = cwd </> "output" </> T.unpack moduleName </> "externs." ++ extension
+  ex <- doesFileExist path
+  return $
+    if ex
+    then Right path
+    else Left (ModuleFileNotFound moduleName)
 
 -- | Taken from Data.Either.Utils
 maybeToEither :: MonadError e m =>

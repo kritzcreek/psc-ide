@@ -21,7 +21,7 @@ data Command
     | Cwd
     | Quit
 
-data ListType = LoadedModules | Imports FilePath
+data ListType = LoadedModules | Imports FilePath | AvailableModules
 
 instance FromJSON ListType where
   parseJSON = withObject "ListType" $ \o -> do
@@ -30,7 +30,8 @@ instance FromJSON ListType where
       "import" -> do
         fp <- o .: "file"
         return (Imports fp)
-      "module" -> return LoadedModules
+      "loadedModules" -> return LoadedModules
+      "availableModules" -> return AvailableModules
       _ -> mzero
 
 instance FromJSON Command where
