@@ -96,6 +96,7 @@ data Success =
   | TextResult Text
   | PursuitResult [PursuitResponse]
   | ImportList [ModuleImport]
+  | ModuleList [ModuleIdent]
   deriving(Show)
 
 encodeSuccess :: (ToJSON a) => a -> Value
@@ -107,6 +108,7 @@ instance ToJSON Success where
   toJSON (TextResult t) = encodeSuccess t
   toJSON (PursuitResult resp) = encodeSuccess resp
   toJSON (ImportList decls) = encodeSuccess decls
+  toJSON (ModuleList modules) = encodeSuccess modules
 
 newtype Filter = Filter (Endo [Module]) deriving(Monoid)
 newtype Matcher = Matcher (Endo [Completion]) deriving(Monoid)

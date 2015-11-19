@@ -135,20 +135,41 @@ The `pursuit` command looks up the packages/completions for a given identifier f
 ```
 
 ### List
-#### Modules
-`list` lists all loaded modules.
+
+#### Loaded Modules
+
+`list` of type `loadedModules` lists all loaded modules (This means they can be searched for completions etc)
 
 ```json
 {
   "command": "list",
   "params": {
-    "type": "module"
+    "type": "loadedModules"
   }
 }
 ```
 
 #### Response:
-The list modules commands returns a list of strings.
+
+The list loadedModules command returns a list of strings.
+
+#### Available Modules
+
+`list` of type `availableModules` lists all available modules. (This basically
+means the contents of the `output/` folder.))
+
+```json
+{
+  "command": "list",
+  "params": {
+    "type": "availableModules"
+  }
+}
+```
+
+#### Response:
+
+The list availableModules command returns a list of strings.
 
 #### Imports
 

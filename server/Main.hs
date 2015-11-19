@@ -97,6 +97,8 @@ handleCommand (Pursuit query Identifier) =
     Right <$> findPursuitCompletions query
 handleCommand (List LoadedModules) =
     Right <$> printModules
+handleCommand (List AvailableModules) =
+    Right <$> listAvailableModules
 handleCommand (List (Imports fp)) =
     importsForFile fp
 handleCommand Cwd =
