@@ -59,6 +59,10 @@ data ModuleImport = ModuleImport {
   importType       :: D.ImportDeclarationType,
   importQualifier  :: Maybe Text} deriving(Show)
 
+instance Eq ModuleImport where
+  mi1 == mi2 = importModuleName mi1 == importModuleName mi2
+               && importQualifier mi1 == importQualifier mi2
+
 instance ToJSON ModuleImport where
   toJSON (ModuleImport mn D.Implicit qualifier) =
     object $  ["module" .= mn
@@ -97,7 +101,7 @@ data Success =
   | PursuitResult [PursuitResponse]
   | ImportList [ModuleImport]
   | ModuleList [ModuleIdent]
-  deriving(Show)
+  deriving(Show, Eq)
 
 encodeSuccess :: (ToJSON a) => a -> Value
 encodeSuccess res =

@@ -80,4 +80,6 @@ test-suite spec
                      , PureScript.Ide.MatcherSpec
   build-depends:       base    >= 4.7 && < 5
                      , psc-ide
+                     , mtl
                      , hspec
+                     , containers
