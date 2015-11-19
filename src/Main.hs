@@ -28,10 +28,10 @@ client :: PortID -> IO ()
 client port = do
     h <-
         connectTo "localhost" port `catch`
-        (\(SomeException _) ->
+        (\(SomeException e) ->
               putStrLn
                   ("Couldn't connect to psc-ide-server on port: " ++
-                   show port) >>
+                   show port ++ " Error: " ++ show e) >>
               exitFailure)
     cmd <- T.getLine
     T.hPutStrLn h cmd
@@ -39,3 +39,4 @@ client port = do
     putStrLn (T.unpack res)
     hFlush stdout
     hClose h
+
