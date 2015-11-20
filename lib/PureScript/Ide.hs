@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module PureScript.Ide where
 
 import           Control.Monad.Except
@@ -18,11 +19,23 @@ import           System.Directory
 
 type PscIde = StateT PscState IO
 
+getPscIdeState :: PscIde (M.Map ModuleIdent [ExternDecl])
+getPscIdeState = pscStateModules <$> get
+
 getAllDecls :: PscIde [ExternDecl]
-getAllDecls = concat . pscStateModules <$> get
+getAllDecls = concat <$> getPscIdeState
 
 getAllModules :: PscIde [Module]
-getAllModules = M.toList . pscStateModules <$> get
+getAllModules = M.toList <$> getPscIdeState
+
+getModule :: ModuleIdent -> PscIde (Maybe Module)
+getModule m = do
+  modules <- getPscIdeState
+  return ((m,) <$> M.lookup m modules)
+
+insertModule :: Module -> PscIde ()
+insertModule (name, decls) =
+  modify (\x -> x { pscStateModules = M.insert name decls (pscStateModules x)})
 
 findCompletions :: [Filter] -> Matcher -> PscIde Success
 findCompletions filters matcher =
@@ -42,30 +55,12 @@ findPursuitPackages (PursuitQuery q) =
 
 loadExtern :: FilePath -> PscIde (Either Error ())
 loadExtern fp = runEitherT $ do
-  decls          <- EitherT (liftIO (readExternFile fp))
-  (name, decls') <- EitherT (return (moduleFromDecls decls))
-  modify (\x ->
-    x { pscStateModules = M.insert name decls' (pscStateModules x)})
-
-getDependenciesForModule :: ModuleIdent -> PscIde (Maybe [ModuleIdent])
-getDependenciesForModule m = do
-  mDecls <- M.lookup m . pscStateModules <$> get
-  return (mapMaybe getDependencyName <$> mDecls)
-  where getDependencyName (Dependency dependencyName _) = Just dependencyName
-        getDependencyName _ = Nothing
-
-moduleFromDecls :: [ExternDecl] -> Either Error Module
-moduleFromDecls decls@(ModuleDecl name _:_) = Right (name, decls)
-moduleFromDecls _ = Left (GeneralError "An externs File didn't start with a module declaration")
-
-stateFromDecls :: [[ExternDecl]] -> Either Error PscState
-stateFromDecls externs= do
-  modules <- mapM moduleFromDecls externs
-  return (PscState (M.fromList modules))
+  m <- EitherT . liftIO $ readExternFile fp
+  lift (insertModule m)
 
 printModules :: PscIde Success
 printModules = do
-  modules <- M.keys . pscStateModules <$> get
+  modules <- M.keys <$> getPscIdeState
   return (ModuleList modules)
 
 listAvailableModules :: PscIde Success
@@ -84,7 +79,7 @@ importsForFile fp = do
 --   denotes modules for which to load dependencies
 loadModulesAndDeps :: [ModuleIdent] -> [ModuleIdent] -> PscIde (Either Error Success)
 loadModulesAndDeps mods deps = do
-  r1 <- mapM loadModule mods
+  r1 <- mapM loadModule (mods ++ deps)
   r2 <- mapM loadModuleDependencies deps
   return $ do
     moduleResults <- fmap T.concat (sequence r1)
@@ -93,28 +88,26 @@ loadModulesAndDeps mods deps = do
 
 loadModuleDependencies :: ModuleIdent -> PscIde (Either Error T.Text)
 loadModuleDependencies moduleName = do
-  _ <- loadModule moduleName
-  mDeps <- getDependenciesForModule moduleName
-  case mDeps of
+  m <- getModule moduleName
+  case getDependenciesForModule <$> m of
     Just deps -> do
       mapM_ loadModule deps
       return (Right ("Dependencies for " <> moduleName <> " loaded."))
     Nothing -> return (Left (ModuleNotFound moduleName))
 
+getDependenciesForModule :: Module -> [ModuleIdent]
+getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls
+  where getDependencyName (Dependency dependencyName _) = Just dependencyName
+        getDependencyName _ = Nothing
+
 loadModule :: ModuleIdent -> PscIde (Either Error T.Text)
-loadModule mn = do
-  path <- liftIO $ filePathFromModule' "json" mn
-  case path of
-    Right p -> do
-      _ <- loadExtern p
-      return (Right ("Loaded extern file at: " <> T.pack p))
-    Left err -> return (Left err)
+loadModule mn = runEitherT $ do
+  path <- EitherT . liftIO $ filePathFromModule "json" mn
+  EitherT (loadExtern path)
+  return ("Loaded extern file at: " <> T.pack path)
 
-filePathFromModule :: ModuleIdent -> IO (Either Error FilePath)
-filePathFromModule = filePathFromModule' "purs"
-
-filePathFromModule' :: String -> ModuleIdent -> IO (Either Error FilePath)
-filePathFromModule' extension moduleName = do
+filePathFromModule :: String -> ModuleIdent -> IO (Either Error FilePath)
+filePathFromModule extension moduleName = do
   cwd <- getCurrentDirectory
   let path = cwd </> "output" </> T.unpack moduleName </> "externs." ++ extension
   ex <- doesFileExist path
