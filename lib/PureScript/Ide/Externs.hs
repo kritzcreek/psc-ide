@@ -24,11 +24,11 @@ import           PureScript.Ide.CodecJSON
 import           PureScript.Ide.Error        (Error (..))
 import           PureScript.Ide.Types
 
-readExternFile :: FilePath -> IO (Either Error [ExternDecl])
+readExternFile :: FilePath -> IO (Either Error Module)
 readExternFile fp = do
    (parseResult :: Maybe PE.ExternsFile) <- decodeT <$> T.readFile fp
    case parseResult of
-     Nothing -> return (Left (GeneralError "Parsing an extern failed"))
+     Nothing -> return . Left . GeneralError $ "Parsing the extern at: " ++ fp ++ " failed"
      Just externs -> return (Right (convertExterns externs))
 
 moduleNameToText :: N.ModuleName -> T.Text
@@ -40,11 +40,10 @@ properNameToText = T.pack . N.runProperName
 identToText :: N.Ident -> T.Text
 identToText  = T.pack . N.runIdent
 
-convertExterns :: PE.ExternsFile -> [ExternDecl]
-convertExterns ef = decls
+convertExterns :: PE.ExternsFile -> Module
+convertExterns ef = (moduleName, importDecls ++ otherDecls)
   where
-    decls = ModuleDecl (moduleNameToText (PE.efModuleName ef)) []
-            : importDecls ++ otherDecls
+    moduleName = moduleNameToText (PE.efModuleName ef)
     importDecls = convertImport <$> PE.efImports ef
     -- Ignoring operator fixities for now since we're not using them
     -- operatorDecls = convertOperator <$> PE.efFixities ef
