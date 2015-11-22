@@ -38,4 +38,8 @@ replaceReexports m db = result
         go m' re@(Export name) = replaceReexport re m' (getModule name)
 
         getModule :: ModuleIdent -> Module
-        getModule name = fromMaybe emptyModule $ (name , ) <$> Map.lookup name db
+        getModule name = clean res
+          where res = fromMaybe emptyModule $ (name , ) <$> Map.lookup name db
+                -- we have to do this because keeping self exports in will result in
+                -- infinite loops
+                clean (mn, decls) = (mn,) (filter (/= Export mn) decls)
