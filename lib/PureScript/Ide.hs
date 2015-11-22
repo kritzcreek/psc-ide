@@ -52,7 +52,8 @@ getModuleWithReexports mi = do
   where
     resolveReexports m db = do
       let replaced = replaceReexports m db
-      liftIO $ print (getReexports replaced)
+      -- Maybe add logging for statements like these
+      -- liftIO $ print (getReexports replaced)
       if null . getReexports $ replaced
         then return replaced
         else resolveReexports replaced db
@@ -116,8 +117,20 @@ loadModuleDependencies moduleName = do
   case getDependenciesForModule <$> m of
     Just deps -> do
       mapM_ loadModule deps
+      -- We need to load the modules, that get reexported from the dependencies
+      depModules <- catMaybes <$> mapM getModule deps
+      -- What to do with errors here? This basically means a reexported dependency
+      -- doesn't exist in the output/ folder
+      _ <- traverse loadReexports depModules
       return (Right ("Dependencies for " <> moduleName <> " loaded."))
     Nothing -> return (Left (ModuleNotFound moduleName))
+
+loadReexports :: Module -> PscIde (Either Error [ModuleIdent])
+loadReexports m = case getReexports m of
+  [] -> return (Right [])
+  -- I'm fine with this crashing on a failed pattern match.
+  -- If this ever fails I'll need to look at GADTs
+  exportDeps -> runEitherT $ traverse (\(Export mn) -> EitherT (loadModule mn)) exportDeps
 
 getDependenciesForModule :: Module -> [ModuleIdent]
 getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls
