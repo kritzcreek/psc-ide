@@ -5,7 +5,7 @@ import           Control.Monad.Except
 import           Control.Monad.State.Lazy (StateT (..), get, modify)
 import           Control.Monad.Trans.Either
 import qualified Data.Map.Lazy            as M
-import           Data.Maybe               (mapMaybe)
+import           Data.Maybe               (mapMaybe, catMaybes)
 import           Data.Monoid
 import qualified Data.Text  as T
 import           PureScript.Ide.Completion
@@ -14,6 +14,7 @@ import           PureScript.Ide.Pursuit
 import           PureScript.Ide.Error
 import           PureScript.Ide.Types
 import           PureScript.Ide.SourceFile
+import           PureScript.Ide.Reexports
 import           System.FilePath
 import           System.Directory
 
@@ -28,10 +29,34 @@ getAllDecls = concat <$> getPscIdeState
 getAllModules :: PscIde [Module]
 getAllModules = M.toList <$> getPscIdeState
 
+getAllModulesWithReexports :: PscIde [Module]
+getAllModulesWithReexports = do
+  mis <- M.keys <$> getPscIdeState
+  ms  <- traverse getModuleWithReexports mis
+  return (catMaybes ms)
+
 getModule :: ModuleIdent -> PscIde (Maybe Module)
 getModule m = do
   modules <- getPscIdeState
   return ((m,) <$> M.lookup m modules)
+
+getModuleWithReexports :: ModuleIdent -> PscIde (Maybe Module)
+getModuleWithReexports mi = do
+  m <- getModule mi
+  db <- getPscIdeState
+  case m of
+    Just m' -> do
+      resolved <- resolveReexports m' db
+      return (Just resolved)
+    Nothing -> return Nothing
+  where
+    resolveReexports m db = do
+      let replaced = replaceReexports m db
+      -- Maybe add logging for statements like these
+      -- liftIO $ print (getReexports replaced)
+      if null . getReexports $ replaced
+        then return replaced
+        else resolveReexports replaced db
 
 insertModule :: Module -> PscIde ()
 insertModule (name, decls) =
@@ -39,11 +64,11 @@ insertModule (name, decls) =
 
 findCompletions :: [Filter] -> Matcher -> PscIde Success
 findCompletions filters matcher =
-  CompletionResult <$> getCompletions filters matcher <$> getAllModules
+  CompletionResult <$> getCompletions filters matcher <$> getAllModulesWithReexports
 
 findType :: DeclIdent -> [Filter] -> PscIde Success
 findType search filters =
-  CompletionResult <$> getExactMatches search filters <$> getAllModules
+  CompletionResult <$> getExactMatches search filters <$> getAllModulesWithReexports
 
 findPursuitCompletions :: PursuitQuery -> PscIde Success
 findPursuitCompletions (PursuitQuery q) =
@@ -92,8 +117,20 @@ loadModuleDependencies moduleName = do
   case getDependenciesForModule <$> m of
     Just deps -> do
       mapM_ loadModule deps
+      -- We need to load the modules, that get reexported from the dependencies
+      depModules <- catMaybes <$> mapM getModule deps
+      -- What to do with errors here? This basically means a reexported dependency
+      -- doesn't exist in the output/ folder
+      _ <- traverse loadReexports depModules
       return (Right ("Dependencies for " <> moduleName <> " loaded."))
     Nothing -> return (Left (ModuleNotFound moduleName))
+
+loadReexports :: Module -> PscIde (Either Error [ModuleIdent])
+loadReexports m = case getReexports m of
+  [] -> return (Right [])
+  -- I'm fine with this crashing on a failed pattern match.
+  -- If this ever fails I'll need to look at GADTs
+  exportDeps -> runEitherT $ traverse (\(Export mn) -> EitherT (loadModule mn)) exportDeps
 
 getDependenciesForModule :: Module -> [ModuleIdent]
 getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls

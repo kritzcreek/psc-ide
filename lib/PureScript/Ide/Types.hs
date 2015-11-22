@@ -16,7 +16,7 @@ type ModuleIdent = Text
 type DeclIdent   = Text
 type Type        = Text
 
-data Fixity = Infix | Infixl | Infixr deriving(Show, Eq)
+data Fixity = Infix | Infixl | Infixr deriving(Show, Eq, Ord)
 
 data ExternDecl
     = FunctionDecl { functionName :: DeclIdent
@@ -30,7 +30,8 @@ data ExternDecl
                  [DeclIdent]
     | DataDecl DeclIdent
                Text
-    deriving (Show,Eq)
+    | Export ModuleIdent
+    deriving (Show,Eq,Ord)
 
 instance ToJSON ExternDecl where
   toJSON (FunctionDecl n t)        = object ["name" .= n, "type" .= t]
@@ -40,6 +41,7 @@ instance ToJSON ExternDecl where
   toJSON (FixityDeclaration f p n) = object ["name" .= n
                                             , "fixity" .= show f
                                             , "precedence" .= p]
+  toJSON (Export _) = object []
 
 type Module = (ModuleIdent, [ExternDecl])
 
