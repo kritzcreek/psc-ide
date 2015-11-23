@@ -54,3 +54,7 @@ spec = do
 
     it "does not list itself as a reexport" $
       getReexports circularModule `shouldBe` []
+
+    it "does not include circular references when replacing reexports" $
+      replaceReexports circularModule (uncurry Map.singleton circularModule )
+      `shouldBe` ("Circular", [])

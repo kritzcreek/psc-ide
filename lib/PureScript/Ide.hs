@@ -128,9 +128,15 @@ loadModuleDependencies moduleName = do
 loadReexports :: Module -> PscIde (Either Error [ModuleIdent])
 loadReexports m = case getReexports m of
   [] -> return (Right [])
-  -- I'm fine with this crashing on a failed pattern match.
-  -- If this ever fails I'll need to look at GADTs
-  exportDeps -> runEitherT $ traverse (\(Export mn) -> EitherT (loadModule mn)) exportDeps
+  exportDeps -> runEitherT $ do
+    -- I'm fine with this crashing on a failed pattern match.
+    -- If this ever fails I'll need to look at GADTs
+    let reexports = map (\(Export mn) -> mn) exportDeps
+    -- liftIO $ print reexports
+    _ <- traverse (EitherT . loadModule) reexports
+    exportDepsModules <- lift $ catMaybes <$> traverse getModule reexports
+    exportDepDeps <- traverse (EitherT . loadReexports) exportDepsModules
+    return $ concat exportDepDeps
 
 getDependenciesForModule :: Module -> [ModuleIdent]
 getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls
