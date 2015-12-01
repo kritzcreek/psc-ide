@@ -45,6 +45,7 @@ stack install
 ## Editor Integration
 * [@epost](https://github.com/epost) wrote a plugin to integrate psc-ide with Emacs at https://github.com/epost/psc-ide-emacs.
 * Atom integration is available with https://github.com/nwolverson/atom-ide-purescript.
+* Vim integration is available here: https://github.com/FrigoEU/psc-ide-vim.
 
 ## Running the Server
 Start the server by running the `psc-ide-server` executable.
