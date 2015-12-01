@@ -44,6 +44,7 @@ stack install
 ## Editor Integration
 * [@epost](https://github.com/epost) wrote a plugin to integrate psc-ide with Emacs at https://github.com/epost/psc-ide-emacs.
 * Atom integration is available with https://github.com/nwolverson/atom-ide-purescript.
+* Visual Studio Code integration is available with https://github.com/nwolverson/vscode-ide-purescript.
 * Vim integration is available here: https://github.com/FrigoEU/psc-ide-vim.
 
 ## Running the Server
@@ -87,6 +88,4 @@ stack exec -- psc-ide
 
 The testsuite can be run with `stack test`.
 If you make changes to the tests stack won't notice them so you need to
-do `stack clean && stack install` to rebuild the tests. 
-
-
+do `stack clean && stack install` to rebuild the tests.
