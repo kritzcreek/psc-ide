@@ -5,9 +5,6 @@ A tool which provides editor support for the PureScript language.
 
 [![Build Status](https://travis-ci.org/kRITZCREEK/psc-ide.svg?branch=travis-build)](https://travis-ci.org/kRITZCREEK/psc-ide)
 
-## Disclaimer
-The releases on hackage are old. It's best if you build the current master for now. I'll get this fixed next week (30.11 - ...)
-
 ## Compatibility Warning
 
 psc-ide versions up to **0.3.0** are compatible with purescript versions < 0.7.5.
