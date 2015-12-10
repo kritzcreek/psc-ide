@@ -7,6 +7,7 @@ import           Control.Monad.State.Lazy
 import           Data.Maybe               (fromMaybe)
 import qualified Data.Text                as T
 import qualified Data.Text.IO             as T
+import           Data.Version             (showVersion)
 import           Network                  hiding (socketPort)
 import           Network.BSD              (getProtocolNumber)
 import           Network.Socket           hiding (PortNumber, Type, accept,
@@ -20,6 +21,8 @@ import           PureScript.Ide.Types
 import           System.Directory
 import           System.Exit
 import           System.IO
+
+import qualified Paths_psc_ide            as Paths
 
 -- Copied from upstream impl of listenOn
 -- bound to localhost interface instead of iNADDR_ANY
@@ -54,7 +57,8 @@ main = do
           optional (strOption (long "directory" <> short 'd')) <*>
           optional (option auto (long "port" <> short 'p')) <*>
           switch (long "debug")
-    opts = info parser mempty
+    opts = info (version <*> parser) mempty
+    version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
 
 
 startServer :: PortID -> Bool -> PscState -> IO ()

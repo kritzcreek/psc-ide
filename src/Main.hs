@@ -5,10 +5,13 @@ import           Control.Exception
 import           Data.Maybe          (fromMaybe)
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as T
+import           Data.Version        (showVersion)
 import           Network
 import           Options.Applicative
-import           System.IO
 import           System.Exit
+import           System.IO
+
+import qualified Paths_psc_ide       as Paths
 
 data Options = Options
     { optionsPort :: Maybe Int
@@ -21,8 +24,10 @@ main = do
     client port'
   where
     parser =
-        Options <$> optional (option auto (long "port" <> short 'p'))
-    opts = info parser mempty
+        Options <$>
+          optional (option auto (long "port" <> short 'p'))
+    opts = info (version <*> parser) mempty
+    version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
 
 client :: PortID -> IO ()
 client port = do
