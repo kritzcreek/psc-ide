@@ -1,8 +1,9 @@
 {-# LANGUAGE TupleSections #-}
 module PureScript.Ide where
 
+import           Control.Concurrent.STM
 import           Control.Monad.Except
-import           Control.Monad.State.Lazy (StateT (..), get, modify)
+import           Control.Monad.State.Lazy (StateT (..), get)
 import           Control.Monad.Trans.Either
 import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe, catMaybes)
@@ -18,10 +19,12 @@ import           PureScript.Ide.Reexports
 import           System.FilePath
 import           System.Directory
 
-type PscIde = StateT PscState IO
+type PscIde = StateT (TVar PscState) IO
 
 getPscIdeState :: PscIde (M.Map ModuleIdent [ExternDecl])
-getPscIdeState = pscStateModules <$> get
+getPscIdeState = do
+  stateVar <- get
+  liftIO $ pscStateModules <$> readTVarIO stateVar
 
 getAllDecls :: PscIde [ExternDecl]
 getAllDecls = concat <$> getPscIdeState
@@ -59,8 +62,10 @@ getModuleWithReexports mi = do
         else resolveReexports replaced db
 
 insertModule :: Module -> PscIde ()
-insertModule (name, decls) =
-  modify (\x -> x { pscStateModules = M.insert name decls (pscStateModules x)})
+insertModule (name, decls) = do
+  stateVar <- get
+  liftIO . atomically $ modifyTVar stateVar $ \x ->
+    x { pscStateModules = M.insert name decls (pscStateModules x)}
 
 findCompletions :: [Filter] -> Matcher -> PscIde Success
 findCompletions filters matcher =
