@@ -90,4 +90,5 @@ test-suite spec
                      , psc-ide
                      , mtl
                      , hspec
+                     , stm
                      , containers
