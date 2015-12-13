@@ -59,6 +59,7 @@ executable psc-ide
                      , text
                      , optparse-applicative
                      , network
+  other-modules: Paths_psc_ide
   ghc-options:         -O2 -Wall
 
 executable psc-ide-server
@@ -74,6 +75,7 @@ executable psc-ide-server
                    , psc-ide
                    , stm
                    , text
+  other-modules: Paths_psc_ide
   ghc-options:         -threaded -O2 -Wall
 
 test-suite spec
