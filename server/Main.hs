@@ -1,10 +1,12 @@
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Concurrent       (forkIO)
+import           Control.Concurrent       (forkIO, forkFinally)
 import           Control.Concurrent.STM
 import           Control.Exception        (bracketOnError)
 import           Control.Monad
+import "monad-logger" Control.Monad.Logger
 import           Control.Monad.State.Lazy
 import           Data.Maybe               (fromMaybe)
 import qualified Data.Text                as T
@@ -56,7 +58,7 @@ main = do
     maybe (return ()) setCurrentDirectory dir
     serverState <- newTVarIO emptyPscState
     cwd <- getCurrentDirectory
-    forkIO $ watcher serverState (cwd </> "output")
+    _ <- forkFinally (watcher serverState (cwd </> "output")) print
     startServer (PortNumber . fromIntegral $ fromMaybe 4242 port) debug serverState
   where
     parser =
@@ -71,7 +73,7 @@ startServer :: PortID -> Bool -> TVar PscState -> IO ()
 startServer port debug st_in =
     withSocketsDo $
     do sock <- listenOnLocalhost port
-       evalStateT (forever (loop sock)) st_in
+       evalStateT (forever (runStdoutLoggingT $ loop sock)) st_in
   where
     acceptCommand sock = do
         (h,_,_) <- accept sock

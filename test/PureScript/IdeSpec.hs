@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports    #-}
 module PureScript.IdeSpec where
 
-import Control.Concurrent.STM
+import           Control.Concurrent.STM
 import           Control.Monad.State
 import           Data.List
-import qualified Data.Map             as Map
+import qualified Data.Map               as Map
 import           PureScript.Ide
 import           PureScript.Ide.Types
 import           Test.Hspec

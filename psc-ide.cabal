@@ -39,6 +39,7 @@ library
                        , http-client
                        , lens
                        , lens-aeson
+                       , monad-logger
                        , mtl
                        , parsec
                        , purescript
@@ -67,11 +68,12 @@ executable psc-ide-server
   main-is:             Main.hs
   default-language:    Haskell2010
   build-depends:     base >= 4.7 && < 5
+                   , directory
+                   , filepath
+                   , monad-logger
                    , mtl
                    , network
                    , optparse-applicative
-                   , directory
-                   , filepath
                    , psc-ide
                    , stm
                    , text
@@ -89,8 +91,9 @@ test-suite spec
                      , PureScript.Ide.MatcherSpec
                      , PureScript.Ide.ReexportsSpec
   build-depends:       base    >= 4.7 && < 5
-                     , psc-ide
-                     , mtl
-                     , hspec
-                     , stm
                      , containers
+                     , hspec
+                     , mtl
+                     , monad-logger
+                     , psc-ide
+                     , stm

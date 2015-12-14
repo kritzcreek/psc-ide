@@ -1,10 +1,16 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PackageImports #-}
+
 module PureScript.Ide where
 
 import           Control.Concurrent.STM
 import           Control.Monad.Except
-import           Control.Monad.State.Lazy (StateT (..), get)
+import           Control.Monad.State.Lazy (StateT (..))
+import           Control.Monad.State.Class
 import           Control.Monad.Trans.Either
+import           "monad-logger" Control.Monad.Logger
 import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe, catMaybes)
 import           Data.Monoid
@@ -19,9 +25,10 @@ import           PureScript.Ide.Reexports
 import           System.FilePath
 import           System.Directory
 
-type PscIde = StateT (TVar PscState) IO
+type PscIde = LoggingT (StateT (TVar PscState) IO)
 
-getPscIdeState :: PscIde (M.Map ModuleIdent [ExternDecl])
+getPscIdeState :: (MonadIO m, MonadState (TVar PscState) m) =>
+                  m (M.Map ModuleIdent [ExternDecl])
 getPscIdeState = do
   stateVar <- get
   liftIO $ pscStateModules <$> readTVarIO stateVar
@@ -32,34 +39,33 @@ getAllDecls = concat <$> getPscIdeState
 getAllModules :: PscIde [Module]
 getAllModules = M.toList <$> getPscIdeState
 
-getAllModulesWithReexports :: PscIde [Module]
+getAllModulesWithReexports :: (Monad m, MonadIO m, MonadState (TVar PscState) m, MonadLogger m) =>
+                              m [Module]
 getAllModulesWithReexports = do
   mis <- M.keys <$> getPscIdeState
   ms  <- traverse getModuleWithReexports mis
   return (catMaybes ms)
 
-getModule :: ModuleIdent -> PscIde (Maybe Module)
+getModule :: (MonadIO m, MonadState (TVar PscState) m, MonadLogger m) =>
+             ModuleIdent -> m (Maybe Module)
 getModule m = do
-  modules <- getPscIdeState
-  return ((m,) <$> M.lookup m modules)
+    $(logDebug) ("Getting the module: " <> T.pack (show m))
+    modules <- getPscIdeState
+    return ((m,) <$> M.lookup m modules)
 
-getModuleWithReexports :: ModuleIdent -> PscIde (Maybe Module)
+getModuleWithReexports :: (MonadIO m, MonadState (TVar PscState) m, MonadLogger m) =>
+                          ModuleIdent -> m (Maybe Module)
 getModuleWithReexports mi = do
   m <- getModule mi
-  db <- getPscIdeState
-  case m of
-    Just m' -> do
-      resolved <- resolveReexports m' db
-      return (Just resolved)
-    Nothing -> return Nothing
-  where
-    resolveReexports m db = do
-      let replaced = replaceReexports m db
-      -- Maybe add logging for statements like these
-      -- liftIO $ print (getReexports replaced)
-      if null . getReexports $ replaced
-        then return replaced
-        else resolveReexports replaced db
+  modules <- getPscIdeState
+  pure $ resolveReexports modules <$> m
+
+resolveReexports :: M.Map ModuleIdent [ExternDecl] -> Module ->  Module
+resolveReexports modules m = do
+  let replaced = replaceReexports m modules
+  if null . getReexports $ replaced
+    then replaced
+    else resolveReexports modules replaced
 
 insertModule :: Module -> PscIde ()
 insertModule (name, decls) = do
@@ -69,11 +75,17 @@ insertModule (name, decls) = do
 
 findCompletions :: [Filter] -> Matcher -> PscIde Success
 findCompletions filters matcher =
-  CompletionResult <$> getCompletions filters matcher <$> getAllModulesWithReexports
+  findCompletions' filters matcher <$> getAllModulesWithReexports
+
+findCompletions' :: [Filter] -> Matcher -> [Module] -> Success
+findCompletions' f m ms = CompletionResult $ getCompletions f m ms
 
 findType :: DeclIdent -> [Filter] -> PscIde Success
 findType search filters =
-  CompletionResult <$> getExactMatches search filters <$> getAllModulesWithReexports
+  findType' search filters <$> getAllModulesWithReexports
+
+findType' :: DeclIdent -> [Filter] -> [Module] -> Success
+findType' search fs ms = CompletionResult $ getExactMatches search fs ms
 
 findPursuitCompletions :: PursuitQuery -> PscIde Success
 findPursuitCompletions (PursuitQuery q) =
@@ -88,17 +100,22 @@ loadExtern fp = runEitherT $ do
   m <- EitherT . liftIO $ readExternFile fp
   lift (insertModule m)
 
-printModules :: PscIde Success
-printModules = do
-  modules <- M.keys <$> getPscIdeState
-  return (ModuleList modules)
+printModules :: (MonadIO m, MonadState (TVar PscState) m) => m Success
+printModules = printModules' <$> getPscIdeState
 
-listAvailableModules :: PscIde Success
+printModules' :: M.Map ModuleIdent [ExternDecl] -> Success
+printModules' = ModuleList . M.keys
+
+listAvailableModules :: MonadIO m => m Success
 listAvailableModules = liftIO $ do
   cwd <- getCurrentDirectory
-  modules <- getDirectoryContents (cwd </> "output")
-  let cleanedModules = filter (`notElem` [".", ".."]) modules
-  return (ModuleList (map T.pack cleanedModules))
+  dirs <- getDirectoryContents (cwd </> "output")
+  return (listAvailableModules' dirs)
+
+listAvailableModules' :: [FilePath] -> Success
+listAvailableModules' dirs =
+  let cleanedModules = filter (`notElem` [".", ".."]) dirs
+  in ModuleList (map T.pack cleanedModules)
 
 importsForFile :: FilePath -> PscIde (Either Error Success)
 importsForFile fp = do
