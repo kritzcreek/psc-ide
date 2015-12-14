@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import           Control.Concurrent       (forkIO)
+import           Control.Concurrent.STM
 import           Control.Exception        (bracketOnError)
 import           Control.Monad
 import           Control.Monad.State.Lazy
@@ -18,8 +20,10 @@ import           PureScript.Ide.CodecJSON
 import           PureScript.Ide.Command
 import           PureScript.Ide.Error
 import           PureScript.Ide.Types
+import           PureScript.Ide.Watcher
 import           System.Directory
 import           System.Exit
+import           System.FilePath
 import           System.IO
 
 import qualified Paths_psc_ide            as Paths
@@ -50,7 +54,10 @@ main :: IO ()
 main = do
     Options dir port debug <- execParser opts
     maybe (return ()) setCurrentDirectory dir
-    startServer (PortNumber . fromIntegral $ fromMaybe 4242 port) debug emptyPscState
+    serverState <- newTVarIO emptyPscState
+    cwd <- getCurrentDirectory
+    forkIO $ watcher serverState (cwd </> "output")
+    startServer (PortNumber . fromIntegral $ fromMaybe 4242 port) debug serverState
   where
     parser =
         Options <$>
@@ -60,8 +67,7 @@ main = do
     opts = info (version <*> parser) mempty
     version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
 
-
-startServer :: PortID -> Bool -> PscState -> IO ()
+startServer :: PortID -> Bool -> TVar PscState -> IO ()
 startServer port debug st_in =
     withSocketsDo $
     do sock <- listenOnLocalhost port

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module PureScript.IdeSpec where
 
+import Control.Concurrent.STM
 import           Control.Monad.State
 import           Data.List
 import qualified Data.Map             as Map
@@ -16,8 +17,10 @@ spec = do
   describe "list" $ do
     describe "loadedModules" $ do
       it "returns an empty list when no modules are loaded" $ do
-       result <- evalStateT printModules emptyPscState
+       st <- newTVarIO emptyPscState
+       result <- evalStateT printModules st
        result `shouldBe` ModuleList []
       it "returns the list of loaded modules" $ do
-        ModuleList result <- evalStateT printModules testState
+        st <- newTVarIO testState
+        ModuleList result <- evalStateT printModules st
         sort result `shouldBe` sort ["Data.Array", "Control.Monad.Eff"]
