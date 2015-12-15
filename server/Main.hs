@@ -1,13 +1,15 @@
-{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports    #-}
+{-# LANGUAGE TemplateHaskell   #-}
 module Main where
 
-import           Control.Concurrent       (forkIO, forkFinally)
+import           Control.Concurrent       (forkFinally)
 import           Control.Concurrent.STM
 import           Control.Exception        (bracketOnError)
 import           Control.Monad
-import "monad-logger" Control.Monad.Logger
-import           Control.Monad.State.Lazy
+import           "monad-logger" Control.Monad.Logger
+import           Control.Monad.Reader
 import           Data.Maybe               (fromMaybe)
 import qualified Data.Text                as T
 import qualified Data.Text.IO             as T
@@ -73,17 +75,21 @@ startServer :: PortID -> Bool -> TVar PscState -> IO ()
 startServer port debug st_in =
     withSocketsDo $
     do sock <- listenOnLocalhost port
-       evalStateT (forever (runStdoutLoggingT $ loop sock)) st_in
+       runReaderT (runStdoutLoggingT $ forever (loop sock)) st_in
   where
+    acceptCommand :: (MonadIO m, MonadLogger m) => Socket -> m (T.Text, Handle)
     acceptCommand sock = do
-        (h,_,_) <- accept sock
-        hSetEncoding h utf8
-        cmd <- T.hGetLine h
-        when debug (T.putStrLn cmd)
-        return (cmd, h)
-    loop :: Socket -> PscIde ()
+        (h,_,_) <- liftIO $ accept sock
+        $(logDebug) "Accepted a connection"
+        liftIO $ do
+          hSetEncoding h utf8
+          hSetBuffering h LineBuffering
+          cmd <- T.hGetLine h
+          when debug (T.putStrLn cmd)
+          return (cmd, h)
+    loop :: (PscIde m, MonadLogger m) =>Socket -> m ()
     loop sock = do
-        (cmd,h) <- liftIO $ acceptCommand sock
+        (cmd,h) <- acceptCommand sock
         case decodeT cmd of
             Just cmd' -> do
                 result <- handleCommand cmd'
@@ -96,7 +102,8 @@ startServer port debug st_in =
                 liftIO $ T.hPutStrLn h (encodeT (GeneralError "Error parsing Command.")) >> hFlush stdout
         liftIO $ hClose h
 
-handleCommand :: Command -> PscIde (Either Error Success)
+handleCommand :: (PscIde m, MonadLogger m) =>
+                 Command -> m (Either Error Success)
 handleCommand (Load modules deps) =
     loadModulesAndDeps modules deps
 handleCommand (Type search filters) =
