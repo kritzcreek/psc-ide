@@ -13,7 +13,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  hs-source-dirs:        lib
+  hs-source-dirs:        src
   exposed-modules:       PureScript.Ide
                        , PureScript.Ide.Command
                        , PureScript.Ide.Externs
@@ -39,6 +39,7 @@ library
                        , http-client
                        , lens
                        , lens-aeson
+                       , monad-logger
                        , mtl
                        , parsec
                        , purescript
@@ -50,7 +51,7 @@ library
   ghc-options:         -O2
 
 executable psc-ide
-  hs-source-dirs:      src
+  hs-source-dirs:      client
   main-is:             Main.hs
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
@@ -59,6 +60,7 @@ executable psc-ide
                      , text
                      , optparse-applicative
                      , network
+  other-modules: Paths_psc_ide
   ghc-options:         -O2 -Wall
 
 executable psc-ide-server
@@ -66,14 +68,16 @@ executable psc-ide-server
   main-is:             Main.hs
   default-language:    Haskell2010
   build-depends:     base >= 4.7 && < 5
+                   , directory
+                   , filepath
+                   , monad-logger
                    , mtl
                    , network
                    , optparse-applicative
-                   , directory
-                   , filepath
                    , psc-ide
                    , stm
                    , text
+  other-modules: Paths_psc_ide
   ghc-options:         -threaded -O2 -Wall
 
 test-suite spec
@@ -87,8 +91,9 @@ test-suite spec
                      , PureScript.Ide.MatcherSpec
                      , PureScript.Ide.ReexportsSpec
   build-depends:       base    >= 4.7 && < 5
-                     , psc-ide
-                     , mtl
-                     , hspec
-                     , stm
                      , containers
+                     , hspec
+                     , mtl
+                     , monad-logger
+                     , psc-ide
+                     , stm
