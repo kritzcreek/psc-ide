@@ -54,6 +54,10 @@ It supports the following options:
 - `-p / --port` specify a port. Defaults to 4242
 - `-d / --directory` specify the toplevel directory of your project. Defaults to
   the current directory
+- `--output-directory`: Specify where to look for compiled output inside your
+  project directory. Defaults to `output/`, relative to either the current
+  directory or the directory specified by `-d`.
+- `--debug`: Enables some logging meant for debugging
 
 ## Issuing queries
 

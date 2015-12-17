@@ -13,15 +13,22 @@ import           Test.Hspec
 testState :: PscState
 testState = PscState (Map.fromList [("Data.Array", []), ("Control.Monad.Eff", [])])
 
+defaultConfig =
+  Configuration
+  {
+    confOutputPath = "output/"
+  , confDebug = False
+  }
+
 spec :: SpecWith ()
 spec = do
   describe "list" $ do
     describe "loadedModules" $ do
       it "returns an empty list when no modules are loaded" $ do
        st <- newTVarIO emptyPscState
-       result <- runReaderT printModules st
+       result <- runReaderT printModules (PscEnvironment st defaultConfig)
        result `shouldBe` ModuleList []
       it "returns the list of loaded modules" $ do
         st <- newTVarIO testState
-        ModuleList result <- runReaderT printModules st
+        ModuleList result <- runReaderT printModules (PscEnvironment st defaultConfig)
         sort result `shouldBe` sort ["Data.Array", "Control.Monad.Eff"]
