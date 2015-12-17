@@ -1,9 +1,14 @@
+{-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards            #-}
 
 module PureScript.Ide.Types where
 
+import           Control.Concurrent.STM
 import           Control.Monad
+import           Control.Monad.Reader.Class
+import           Control.Monad.Trans
 import           Data.Aeson
 import           Data.Map.Lazy                        as M
 import           Data.Maybe                           (maybeToList)
@@ -44,6 +49,22 @@ instance ToJSON ExternDecl where
   toJSON (Export _) = object []
 
 type Module = (ModuleIdent, [ExternDecl])
+
+data Configuration =
+  Configuration
+  {
+    confOutputPath :: FilePath
+  , confDebug      :: Bool
+  }
+
+data PscEnvironment =
+  PscEnvironment
+  {
+    envStateVar      :: TVar PscState
+  , envConfiguration :: Configuration
+  }
+
+type PscIde m = (MonadIO m, MonadReader PscEnvironment m)
 
 data PscState = PscState
     { pscStateModules :: M.Map Text [ExternDecl]
