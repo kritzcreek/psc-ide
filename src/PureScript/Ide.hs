@@ -2,7 +2,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PackageImports #-}
-{-# LANGUAGE ConstraintKinds #-}
 
 module PureScript.Ide where
 
@@ -26,12 +25,11 @@ import           PureScript.Ide.Reexports
 import           System.FilePath
 import           System.Directory
 
-type PscIde m = (MonadIO m, MonadReader (TVar PscState) m)
 
 getPscIdeState :: PscIde m =>
                   m (M.Map ModuleIdent [ExternDecl])
 getPscIdeState = do
-  stateVar <- ask
+  stateVar <- envStateVar <$> ask
   liftIO $ pscStateModules <$> readTVarIO stateVar
 
 getAllDecls :: PscIde m => m [ExternDecl]
@@ -70,9 +68,11 @@ resolveReexports modules m = do
 insertModule ::(PscIde m, MonadLogger m) =>
                Module -> m ()
 insertModule (name, decls) = do
-  stateVar <- ask
-  $(logDebug) $ "Inserting Module: " <> name
-  liftIO . atomically $ modifyTVar stateVar $ \x ->
+  env <- ask
+  when (confDebug . envConfiguration $ env) $ do
+    $(logDebug) $ "Inserting Module: " <> name
+    pure ()
+  liftIO . atomically $ modifyTVar (envStateVar env) $ \x ->
     x { pscStateModules = M.insert name decls (pscStateModules x)}
 
 findCompletions :: (PscIde m, MonadLogger m) =>
@@ -107,11 +107,13 @@ printModules = printModules' <$> getPscIdeState
 printModules' :: M.Map ModuleIdent [ExternDecl] -> Success
 printModules' = ModuleList . M.keys
 
-listAvailableModules :: MonadIO m => m Success
-listAvailableModules = liftIO $ do
-  cwd <- getCurrentDirectory
-  dirs <- getDirectoryContents (cwd </> "output")
-  return (ModuleList (listAvailableModules' dirs))
+listAvailableModules :: PscIde m => m Success
+listAvailableModules = do
+  outputPath <- confOutputPath . envConfiguration <$> ask
+  liftIO $ do
+    cwd <- getCurrentDirectory
+    dirs <- getDirectoryContents (cwd </> outputPath)
+    return (ModuleList (listAvailableModules' dirs))
 
 listAvailableModules' :: [FilePath] -> [Text]
 listAvailableModules' dirs =
@@ -174,20 +176,22 @@ getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls
 loadModule :: (PscIde m, MonadLogger m) =>
               ModuleIdent -> m (Either Error Text)
 loadModule mn = runEitherT $ do
-  path <- EitherT . liftIO $ filePathFromModule mn
+  path <- EitherT (filePathFromModule mn)
   EitherT (loadExtern path)
   lift $ $(logDebug) ("Loaded extern file at: " <> T.pack path)
   return ("Loaded extern file at: " <> T.pack path)
 
-filePathFromModule :: (MonadIO m) => ModuleIdent -> m (Either Error FilePath)
+filePathFromModule :: PscIde m => ModuleIdent -> m (Either Error FilePath)
 filePathFromModule moduleName = do
-  cwd <- liftIO getCurrentDirectory
-  let path = cwd </> "output" </> T.unpack moduleName </> "externs.json"
-  ex <- liftIO $ doesFileExist path
-  return $
-    if ex
-    then Right path
-    else Left (ModuleFileNotFound moduleName)
+  outputPath <- confOutputPath . envConfiguration <$> ask
+  liftIO $ do
+    cwd <- liftIO getCurrentDirectory
+    let path = cwd </> outputPath </> T.unpack moduleName </> "externs.json"
+    ex <- liftIO $ doesFileExist path
+    return $
+      if ex
+      then Right path
+      else Left (ModuleFileNotFound moduleName)
 
 -- | Taken from Data.Either.Utils
 maybeToEither :: MonadError e m =>

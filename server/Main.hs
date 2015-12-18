@@ -10,7 +10,6 @@ import           Control.Exception        (bracketOnError)
 import           Control.Monad
 import           "monad-logger" Control.Monad.Logger
 import           Control.Monad.Reader
-import           Data.Maybe               (fromMaybe)
 import qualified Data.Text                as T
 import qualified Data.Text.IO             as T
 import           Data.Version             (showVersion)
@@ -49,34 +48,49 @@ listenOnLocalhost (PortNumber port) = do
 listenOnLocalhost _ = error "Wrong Porttype"
 
 data Options = Options
-    { optionsDirectory :: Maybe FilePath
-    , optionsPort      :: Maybe Int
-    , optionsDebug     :: Bool
+    { optionsDirectory  :: Maybe FilePath
+    , optionsOutputPath :: FilePath
+    , optionsPort       :: Int
+    , optionsDebug      :: Bool
     }
 
 main :: IO ()
 main = do
-    Options dir port debug <- execParser opts
+    Options dir outputPath port debug  <- execParser opts
     maybe (return ()) setCurrentDirectory dir
     serverState <- newTVarIO emptyPscState
     cwd <- getCurrentDirectory
-    _ <- forkFinally (watcher serverState (cwd </> "output")) print
-    startServer (PortNumber . fromIntegral $ fromMaybe 4242 port) debug serverState
+    _ <- forkFinally (watcher serverState (cwd </> outputPath)) print
+    let conf =
+          Configuration
+          {
+            confDebug = debug
+          , confOutputPath = outputPath
+          }
+    let env =
+          PscEnvironment
+          {
+            envStateVar = serverState
+          , envConfiguration = conf
+          }
+    startServer (PortNumber . fromIntegral $ port) env
   where
     parser =
         Options <$>
           optional (strOption (long "directory" <> short 'd')) <*>
-          optional (option auto (long "port" <> short 'p')) <*>
+          strOption (long "output-directory" <> value "output/") <*>
+          option auto (long "port" <> short 'p' <> value 4242) <*>
           switch (long "debug")
     opts = info (version <*> parser) mempty
     version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
 
-startServer :: PortID -> Bool -> TVar PscState -> IO ()
-startServer port debug st_in =
+startServer :: PortID -> PscEnvironment -> IO ()
+startServer port env =
     withSocketsDo $
     do sock <- listenOnLocalhost port
-       runReaderT (runStdoutLoggingT $ forever (loop sock)) st_in
+       runReaderT (runStdoutLoggingT $ forever (loop sock)) env
   where
+    debug = confDebug . envConfiguration $ env
     acceptCommand :: (MonadIO m, MonadLogger m) => Socket -> m (T.Text, Handle)
     acceptCommand sock = do
         (h,_,_) <- liftIO $ accept sock
