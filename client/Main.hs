@@ -3,6 +3,7 @@ module Main where
 
 import           Control.Exception
 import           Data.Maybe          (fromMaybe)
+import           Data.Text           (Text)
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as T
 import           Data.Version        (showVersion)
@@ -39,9 +40,17 @@ client port = do
                    show port ++ " Error: " ++ show e) >>
               exitFailure)
     cmd <- T.getLine
-    T.hPutStrLn h cmd
+    -- Temporary fix for emacs windows bug
+    let cleanedCmd = removeSurroundingTicks cmd
+    --
+    T.hPutStrLn h cleanedCmd
     res <- T.hGetLine h
     putStrLn (T.unpack res)
     hFlush stdout
     hClose h
 
+
+
+-- TODO: Fix this in the emacs plugin by using a real process over shellcommands
+removeSurroundingTicks :: Text -> Text
+removeSurroundingTicks = T.dropWhile (== '\'') . T.dropWhileEnd (== '\'')
