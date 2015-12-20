@@ -87,7 +87,7 @@ instance Eq ModuleImport where
                && importQualifier mi1 == importQualifier mi2
 
 instance ToJSON ModuleImport where
-  toJSON (ModuleImport mn D.Implicit qualifier) =
+  toJSON (ModuleImport mn (D.Implicit _) qualifier) =
     object $  ["module" .= mn
               , "importType" .= ("implicit" :: Text)
               ] ++ fmap (\x -> "qualifier" .= x) (maybeToList qualifier)
