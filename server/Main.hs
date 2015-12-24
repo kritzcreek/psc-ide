@@ -31,90 +31,100 @@ import           System.IO
 
 import qualified Paths_psc_ide            as Paths
 
+-- "Borrowed" from the Idris Compiler
 -- Copied from upstream impl of listenOn
 -- bound to localhost interface instead of iNADDR_ANY
 listenOnLocalhost :: PortID -> IO Socket
 listenOnLocalhost (PortNumber port) = do
-    proto <- getProtocolNumber "tcp"
-    localhost <- inet_addr "127.0.0.1"
-    bracketOnError
-        (socket AF_INET Stream proto)
-        sClose
-        (\sock ->
-              do setSocketOption sock ReuseAddr 1
-                 bindSocket sock (SockAddrInet port localhost)
-                 listen sock maxListenQueue
-                 return sock)
+  proto <- getProtocolNumber "tcp"
+  localhost <- inet_addr "127.0.0.1"
+  bracketOnError
+    (socket AF_INET Stream proto)
+    sClose
+    (\sock -> do
+      setSocketOption sock ReuseAddr 1
+      bindSocket sock (SockAddrInet port localhost)
+      listen sock maxListenQueue
+      pure sock)
 listenOnLocalhost _ = error "Wrong Porttype"
 
 data Options = Options
-    { optionsDirectory  :: Maybe FilePath
-    , optionsOutputPath :: FilePath
-    , optionsPort       :: Int
-    , optionsDebug      :: Bool
-    }
+  { optionsDirectory  :: Maybe FilePath
+  , optionsOutputPath :: FilePath
+  , optionsPort       :: Int
+  , optionsDebug      :: Bool
+  }
 
 main :: IO ()
 main = do
-    Options dir outputPath port debug  <- execParser opts
-    maybe (return ()) setCurrentDirectory dir
-    serverState <- newTVarIO emptyPscState
-    cwd <- getCurrentDirectory
-    _ <- forkFinally (watcher serverState (cwd </> outputPath)) print
-    let conf =
-          Configuration
-          {
-            confDebug = debug
-          , confOutputPath = outputPath
-          }
-    let env =
-          PscEnvironment
-          {
-            envStateVar = serverState
-          , envConfiguration = conf
-          }
-    startServer (PortNumber . fromIntegral $ port) env
+  Options dir outputPath port debug  <- execParser opts
+  maybe (pure ()) setCurrentDirectory dir
+  serverState <- newTVarIO emptyPscState
+  cwd <- getCurrentDirectory
+  _ <- forkFinally (watcher serverState (cwd </> outputPath)) print
+  let conf =
+        Configuration
+        {
+          confDebug = debug
+        , confOutputPath = outputPath
+        }
+  let env =
+        PscEnvironment
+        {
+          envStateVar = serverState
+        , envConfiguration = conf
+        }
+  startServer (PortNumber (fromIntegral port)) env
   where
     parser =
-        Options <$>
-          optional (strOption (long "directory" <> short 'd')) <*>
-          strOption (long "output-directory" <> value "output/") <*>
-          option auto (long "port" <> short 'p' <> value 4242) <*>
-          switch (long "debug")
+      Options <$>
+        optional (strOption (long "directory" <> short 'd')) <*>
+        strOption (long "output-directory" <> value "output/") <*>
+        option auto (long "port" <> short 'p' <> value 4242) <*>
+        switch (long "debug")
     opts = info (version <*> parser) mempty
-    version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
+    version = abortOption
+      (InfoMsg (showVersion Paths.version))
+      (long "version" <> help "Show the version number")
 
 startServer :: PortID -> PscEnvironment -> IO ()
-startServer port env =
-    withSocketsDo $
-    do sock <- listenOnLocalhost port
-       runReaderT (runStdoutLoggingT $ forever (loop sock)) env
+startServer port env = withSocketsDo $ do
+  sock <- listenOnLocalhost port
+  runLogger (runReaderT (forever (loop sock)) env)
   where
-    debug = confDebug . envConfiguration $ env
-    acceptCommand :: (MonadIO m, MonadLogger m) => Socket -> m (T.Text, Handle)
-    acceptCommand sock = do
-        (h,_,_) <- liftIO $ accept sock
-        $(logDebug) "Accepted a connection"
-        liftIO $ do
-          hSetEncoding h utf8
-          hSetBuffering h LineBuffering
-          cmd <- T.hGetLine h
-          when debug (T.putStrLn cmd)
-          return (cmd, h)
-    loop :: (PscIde m, MonadLogger m) =>Socket -> m ()
+    runLogger = runStdoutLoggingT . filterLogger (\_ _ -> confDebug (envConfiguration env))
+
+    loop :: (PscIde m, MonadLogger m) => Socket -> m ()
     loop sock = do
-        (cmd,h) <- acceptCommand sock
-        case decodeT cmd of
-            Just cmd' -> do
-                result <- handleCommand cmd'
-                when debug $ liftIO $ T.putStrLn ("Answer was: " <> (T.pack . show $ result)) >> hFlush stdout
-                case result of
-                  -- What function can I use to clean this up?
-                  Right r  -> liftIO $ T.hPutStrLn h (encodeT r)
-                  Left err -> liftIO $ T.hPutStrLn h (encodeT err)
-            Nothing ->
-                liftIO $ T.hPutStrLn h (encodeT (GeneralError "Error parsing Command.")) >> hFlush stdout
-        liftIO $ hClose h
+      (cmd,h) <- acceptCommand sock
+      case decodeT cmd of
+        Just cmd' -> do
+          result <- handleCommand cmd'
+          $(logDebug) ("Answer was: " <> T.pack (show result))
+          liftIO (hFlush stdout)
+          case result of
+            -- What function can I use to clean this up?
+            Right r  -> liftIO $ T.hPutStrLn h (encodeT r)
+            Left err -> liftIO $ T.hPutStrLn h (encodeT err)
+        Nothing -> do
+          $(logDebug) ("Parsing the command failed. Command: " <> cmd)
+          liftIO $ T.hPutStrLn h (encodeT (GeneralError "Error parsing Command.")) >> hFlush stdout
+      liftIO (hClose h)
+
+
+acceptCommand :: (MonadIO m, MonadLogger m) => Socket -> m (T.Text, Handle)
+acceptCommand sock = do
+  h <- acceptConnection
+  $(logDebug) "Accepted a connection"
+  cmd <- liftIO (T.hGetLine h)
+  $(logDebug) cmd
+  pure (cmd, h)
+  where
+   acceptConnection = liftIO $ do
+     (h,_,_) <- accept sock
+     hSetEncoding h utf8
+     hSetBuffering h LineBuffering
+     pure h
 
 handleCommand :: (PscIde m, MonadLogger m) =>
                  Command -> m (Either Error Success)

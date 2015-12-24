@@ -28,8 +28,8 @@ reloadFile stateVar fp = do
           x { pscStateModules = M.insert name decls (pscStateModules x)}
 
 watcher :: TVar PscState -> FilePath -> IO ()
-watcher stateVar fp = putStrLn fp >>= \_ -> withManager $ \mgr -> do
+watcher stateVar fp = withManager $ \mgr -> do
   _ <- watchTree mgr fp
-    (\ev -> "externs.json" == takeFileName (eventPath ev))
+    (\ev -> takeFileName (eventPath ev) == "externs.json")
     (reloadFile stateVar . eventPath)
   forever (threadDelay 10000)
