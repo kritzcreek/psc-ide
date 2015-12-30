@@ -27,6 +27,7 @@ library
                        , PureScript.Ide.SourceFile
                        , PureScript.Ide.Watcher
                        , PureScript.Ide.Reexports
+                       , PureScript.Ide.Compile
   default-language:      Haskell2010
   build-depends:         aeson
                        , base >= 4.7 && < 5
@@ -42,6 +43,7 @@ library
                        , monad-logger
                        , mtl
                        , parsec
+                       , process
                        , purescript
                        , regex-tdfa
                        , stm
