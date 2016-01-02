@@ -35,7 +35,7 @@ readExternFile fp = do
 moduleNameToText :: N.ModuleName -> T.Text
 moduleNameToText = T.pack . N.runModuleName
 
-properNameToText :: N.ProperName -> T.Text
+properNameToText :: N.ProperName a -> T.Text
 properNameToText = T.pack . N.runProperName
 
 identToText :: N.Ident -> T.Text

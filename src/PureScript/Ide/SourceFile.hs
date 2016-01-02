@@ -40,18 +40,18 @@ getImportsForFile fp = do
   module' <- parseModuleFromFile fp
   let imports = getImports <$> module'
   return (fmap (mkModuleImport . unwrapPositionedImport) <$> imports)
-  where mkModuleImport (D.ImportDeclaration mn importType' qualifier) =
+  where mkModuleImport (D.ImportDeclaration mn importType' qualifier _) =
           ModuleImport
             (T.pack (N.runModuleName mn))
             importType'
             (T.pack . N.runModuleName <$> qualifier)
         mkModuleImport _ = error "Shouldn't have gotten anything but Imports here"
-        unwrapPositionedImport (D.ImportDeclaration mn importType' qualifier) =
-          D.ImportDeclaration mn (unwrapImportType importType') qualifier
+        unwrapPositionedImport (D.ImportDeclaration mn importType' qualifier b) =
+          D.ImportDeclaration mn (unwrapImportType importType') qualifier b
         unwrapPositionedImport x = x
         unwrapImportType (D.Explicit decls) = D.Explicit (map unwrapPositionedRef decls)
         unwrapImportType (D.Hiding decls)   = D.Hiding (map unwrapPositionedRef decls)
-        unwrapImportType D.Implicit         = D.Implicit
+        unwrapImportType  D.Implicit        = D.Implicit
 
 getPositionedImports :: D.Module -> [D.Declaration]
 getPositionedImports (D.Module _ _ _ declarations _) =
