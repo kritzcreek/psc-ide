@@ -11,7 +11,7 @@ import           PureScript.Ide.Types
 import           Test.Hspec
 
 testState :: PscState
-testState = PscState (Map.fromList [("Data.Array", []), ("Control.Monad.Eff", [])])
+testState = PscState (Map.fromList [("Data.Array", []), ("Control.Monad.Eff", [])]) (Map.empty)
 
 defaultConfig =
   Configuration

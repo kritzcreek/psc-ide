@@ -1,11 +1,14 @@
+{-# LANGUAGE RecordWildCards #-}
 module PureScript.Ide.Watcher where
 
-import           Control.Concurrent     (threadDelay)
+import           Control.Concurrent          (threadDelay)
 import           Control.Concurrent.STM
-import           Control.Monad          (forever, when)
-import qualified Data.Map               as M
-import           Data.Maybe             (isJust)
+import           Control.Monad               (forever, when)
+import qualified Data.Map                    as M
+import           Data.Maybe                  (isJust)
+import           Language.PureScript.Externs
 import           PureScript.Ide.Externs
+import           PureScript.Ide.State
 import           PureScript.Ide.Types
 import           System.FilePath
 import           System.FSNotify
@@ -13,19 +16,17 @@ import           System.FSNotify
 
 reloadFile :: TVar PscState -> FilePath -> IO ()
 reloadFile stateVar fp = do
-  Right (name, decls) <- readExternFile fp
+  (Right ef@ExternsFile{..}) <- readExternFile fp
   reloaded <- atomically $ do
     st <- readTVar stateVar
-    if isLoaded name st
+    if isLoaded efModuleName st
       then
-        loadModule name decls *> pure True
+        insertModule' stateVar ef *> pure True
       else
         pure False
   when reloaded $ putStrLn $ "Reloaded File at: " ++ fp
   where
-    isLoaded name st = isJust (M.lookup name (pscStateModules st))
-    loadModule name decls = modifyTVar stateVar $ \x ->
-          x { pscStateModules = M.insert name decls (pscStateModules x)}
+    isLoaded name st = isJust (M.lookup name (externsFiles st))
 
 watcher :: TVar PscState -> FilePath -> IO ()
 watcher stateVar fp = withManager $ \mgr -> do

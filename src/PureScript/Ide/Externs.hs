@@ -10,7 +10,8 @@ module PureScript.Ide.Externs
     DeclIdent,
     Type,
     Fixity(..),
-    readExternFile
+    readExternFile,
+    convertExterns
   ) where
 
 
@@ -25,12 +26,12 @@ import           PureScript.Ide.CodecJSON
 import           PureScript.Ide.Error        (Error (..))
 import           PureScript.Ide.Types
 
-readExternFile :: FilePath -> IO (Either Error Module)
+readExternFile :: FilePath -> IO (Either Error PE.ExternsFile)
 readExternFile fp = do
    (parseResult :: Maybe PE.ExternsFile) <- decodeT <$> T.readFile fp
    case parseResult of
-     Nothing -> return . Left . GeneralError $ "Parsing the extern at: " ++ fp ++ " failed"
-     Just externs -> return (Right (convertExterns externs))
+     Nothing -> pure . Left . GeneralError $ "Parsing the extern at: " ++ fp ++ " failed"
+     Just externs -> pure (Right externs)
 
 moduleNameToText :: N.ModuleName -> T.Text
 moduleNameToText = T.pack . N.runModuleName

@@ -144,6 +144,8 @@ handleCommand (List AvailableModules) =
     Right <$> listAvailableModules
 handleCommand (List (Imports fp)) =
     importsForFile fp
+handleCommand (CaseSplit l b e t) =
+    Right <$> caseSplit l b e t
 handleCommand Cwd =
     Right . TextResult . T.pack <$> liftIO getCurrentDirectory
 handleCommand Quit = Right <$> liftIO exitSuccess

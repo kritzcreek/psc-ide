@@ -3,6 +3,7 @@ module PureScript.Ide.Command where
 
 import           Control.Monad
 import           Data.Aeson
+import           Data.Text (Text)
 import           Data.Maybe
 import           PureScript.Ide.Filter
 import           PureScript.Ide.Matcher
@@ -18,6 +19,11 @@ data Command
     | Pursuit { pursuitQuery      :: PursuitQuery
               , pursuitSearchType :: PursuitSearchType}
     | List {listType :: ListType}
+    | CaseSplit {
+      caseSplitLine :: Text
+      , caseSplitBegin :: Int
+      , caseSplitEnd :: Int
+      , caseSplitType :: Type}
     | Cwd
     | Quit
 
@@ -63,6 +69,13 @@ instance FromJSON Command where
         query <- params .: "query"
         queryType <- params .: "type"
         return $ Pursuit query queryType
+      "caseSplit" -> do
+        params <- o .: "params"
+        line <- params .: "line"
+        begin <- params .: "begin"
+        end <- params .: "end"
+        type' <- params .: "type"
+        return $ CaseSplit line begin end type'
       _ -> mzero
 
 instance FromJSON Filter where

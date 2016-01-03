@@ -16,6 +16,8 @@ import           Data.Monoid
 import           Data.Text                            (Text ())
 import qualified Language.PureScript.AST.Declarations as D
 import qualified Language.PureScript.Names            as N
+import           Language.PureScript.Externs
+import           Language.PureScript.Names
 
 type ModuleIdent = Text
 type DeclIdent   = Text
@@ -64,12 +66,14 @@ data PscEnvironment =
 
 type PscIde m = (MonadIO m, MonadReader PscEnvironment m)
 
-data PscState = PscState
-    { pscStateModules :: M.Map Text [ExternDecl]
-    } deriving (Show,Eq)
+data PscState =
+  PscState {
+    pscStateModules :: M.Map Text [ExternDecl]
+  , externsFiles :: M.Map ModuleName ExternsFile
+  } deriving Show
 
 emptyPscState :: PscState
-emptyPscState = PscState M.empty
+emptyPscState = PscState M.empty M.empty
 
 newtype Completion =
     Completion (ModuleIdent, DeclIdent, Type)
@@ -121,6 +125,7 @@ instance ToJSON Completion where
 data Success =
   CompletionResult [Completion]
   | TextResult Text
+  | MultilineTextResult [Text]
   | PursuitResult [PursuitResponse]
   | ImportList [ModuleImport]
   | ModuleList [ModuleIdent]
@@ -133,6 +138,7 @@ encodeSuccess res =
 instance ToJSON Success where
   toJSON (CompletionResult cs) = encodeSuccess cs
   toJSON (TextResult t) = encodeSuccess t
+  toJSON (MultilineTextResult ts) = encodeSuccess ts
   toJSON (PursuitResult resp) = encodeSuccess resp
   toJSON (ImportList decls) = encodeSuccess decls
   toJSON (ModuleList modules) = encodeSuccess modules

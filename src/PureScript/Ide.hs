@@ -5,7 +5,7 @@
 
 module PureScript.Ide where
 
-import           Control.Concurrent.STM
+
 import           Control.Monad.Except
 import           Control.Monad.Reader.Class
 import           Control.Monad.Trans.Either
@@ -21,59 +21,11 @@ import           PureScript.Ide.Pursuit
 import           PureScript.Ide.Error
 import           PureScript.Ide.Types
 import           PureScript.Ide.SourceFile
+import           PureScript.Ide.State
 import           PureScript.Ide.Reexports
+import qualified PureScript.Ide.CaseSplit as CS
 import           System.FilePath
 import           System.Directory
-
-
-getPscIdeState :: PscIde m =>
-                  m (M.Map ModuleIdent [ExternDecl])
-getPscIdeState = do
-  stateVar <- envStateVar <$> ask
-  liftIO $ pscStateModules <$> readTVarIO stateVar
-
-getAllDecls :: PscIde m => m [ExternDecl]
-getAllDecls = concat <$> getPscIdeState
-
-getAllModules :: PscIde m => m [Module]
-getAllModules = M.toList <$> getPscIdeState
-
-getAllModulesWithReexports :: (PscIde m, MonadLogger m) =>
-                              m [Module]
-getAllModulesWithReexports = do
-  mis <- M.keys <$> getPscIdeState
-  ms  <- traverse getModuleWithReexports mis
-  return (catMaybes ms)
-
-getModule :: (PscIde m, MonadLogger m) =>
-             ModuleIdent -> m (Maybe Module)
-getModule m = do
-  modules <- getPscIdeState
-  return ((m,) <$> M.lookup m modules)
-
-getModuleWithReexports :: (PscIde m, MonadLogger m) =>
-                          ModuleIdent -> m (Maybe Module)
-getModuleWithReexports mi = do
-  m <- getModule mi
-  modules <- getPscIdeState
-  pure $ resolveReexports modules <$> m
-
-resolveReexports :: M.Map ModuleIdent [ExternDecl] -> Module ->  Module
-resolveReexports modules m = do
-  let replaced = replaceReexports m modules
-  if null . getReexports $ replaced
-    then replaced
-    else resolveReexports modules replaced
-
-insertModule ::(PscIde m, MonadLogger m) =>
-               Module -> m ()
-insertModule (name, decls) = do
-  env <- ask
-  when (confDebug . envConfiguration $ env) $ do
-    $(logDebug) $ "Inserting Module: " <> name
-    pure ()
-  liftIO . atomically $ modifyTVar (envStateVar env) $ \x ->
-    x { pscStateModules = M.insert name decls (pscStateModules x)}
 
 findCompletions :: (PscIde m, MonadLogger m) =>
                    [Filter] -> Matcher -> m Success
@@ -119,6 +71,12 @@ listAvailableModules' :: [FilePath] -> [Text]
 listAvailableModules' dirs =
   let cleanedModules = filter (`notElem` [".", ".."]) dirs
   in map T.pack cleanedModules
+
+caseSplit :: (PscIde m, MonadLogger m) =>
+  Text -> Int -> Int -> Text -> m Success
+caseSplit l b e t = do
+  patterns <- CS.makePattern l b e <$> CS.caseSplit t
+  pure (MultilineTextResult patterns)
 
 importsForFile :: (MonadIO m, MonadLogger m) =>
                   FilePath -> m (Either Error Success)

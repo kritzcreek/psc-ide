@@ -43,3 +43,10 @@ replaceReexports m db = result
                 -- we have to do this because keeping self exports in will result in
                 -- infinite loops
                 clean (mn, decls) = (mn,) (filter (/= Export mn) decls)
+
+resolveReexports :: Map ModuleIdent [ExternDecl] -> Module ->  Module
+resolveReexports modules m = do
+  let replaced = replaceReexports m modules
+  if null . getReexports $ replaced
+    then replaced
+    else resolveReexports modules replaced
