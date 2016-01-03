@@ -51,15 +51,13 @@ instance ToJSON ExternDecl where
 type Module = (ModuleIdent, [ExternDecl])
 
 data Configuration =
-  Configuration
-  {
+  Configuration {
     confOutputPath :: FilePath
   , confDebug      :: Bool
   }
 
 data PscEnvironment =
-  PscEnvironment
-  {
+  PscEnvironment {
     envStateVar      :: TVar PscState
   , envConfiguration :: Configuration
   }
@@ -77,10 +75,12 @@ newtype Completion =
     Completion (ModuleIdent, DeclIdent, Type)
     deriving (Show,Eq)
 
-data ModuleImport = ModuleImport {
-  importModuleName :: ModuleIdent,
-  importType       :: D.ImportDeclarationType,
-  importQualifier  :: Maybe Text} deriving(Show)
+data ModuleImport =
+  ModuleImport {
+    importModuleName :: ModuleIdent
+  , importType :: D.ImportDeclarationType
+  , importQualifier :: Maybe Text
+  } deriving(Show)
 
 instance Eq ModuleImport where
   mi1 == mi2 = importModuleName mi1 == importModuleName mi2
