@@ -8,8 +8,8 @@ module PureScript.Ide where
 
 import           Control.Monad.Except
 import           Control.Monad.Reader.Class
-import           Control.Monad.Trans.Either
 import           "monad-logger" Control.Monad.Logger
+import           Data.Foldable
 import qualified Data.Map.Lazy            as M
 import           Data.Maybe               (mapMaybe, catMaybes)
 import           Data.Monoid
@@ -47,11 +47,11 @@ findPursuitPackages :: (MonadIO m, MonadLogger m) =>
 findPursuitPackages (PursuitQuery q) =
   PursuitResult <$> liftIO (findPackagesForModuleIdent q)
 
-loadExtern ::(PscIde m, MonadLogger m) =>
-             FilePath -> m (Either Error ())
-loadExtern fp = runEitherT $ do
-  m <- EitherT . liftIO $ readExternFile fp
-  lift (insertModule m)
+loadExtern ::(PscIde m, MonadLogger m, MonadError PscIdeError m) =>
+             FilePath -> m ()
+loadExtern fp = do
+  m <- readExternFile fp
+  insertModule m
 
 printModules :: (PscIde m) => m Success
 printModules = printModules' <$> getPscIdeState
@@ -72,32 +72,31 @@ listAvailableModules' dirs =
   let cleanedModules = filter (`notElem` [".", ".."]) dirs
   in map T.pack cleanedModules
 
-caseSplit :: (PscIde m, MonadLogger m) =>
+caseSplit :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
   Text -> Int -> Int -> Text -> m Success
 caseSplit l b e t = do
   patterns <- CS.makePattern l b e <$> CS.caseSplit t
   pure (MultilineTextResult patterns)
 
-importsForFile :: (MonadIO m, MonadLogger m) =>
-                  FilePath -> m (Either Error Success)
+importsForFile :: (MonadIO m, MonadLogger m, MonadError PscIdeError m) =>
+                  FilePath -> m Success
 importsForFile fp = do
-  imports <- liftIO (getImportsForFile fp)
-  return (ImportList <$> imports)
+  imports <- getImportsForFile fp
+  pure (ImportList imports)
 
 -- | The first argument is a set of modules to load. The second argument
 --   denotes modules for which to load dependencies
-loadModulesAndDeps :: (PscIde m, MonadLogger m) =>
-                     [ModuleIdent] -> [ModuleIdent] -> m (Either Error Success)
+loadModulesAndDeps :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
+                     [ModuleIdent] -> [ModuleIdent] -> m Success
 loadModulesAndDeps mods deps = do
   r1 <- mapM loadModule (mods ++ deps)
   r2 <- mapM loadModuleDependencies deps
-  return $ do
-    moduleResults <- fmap T.concat (sequence r1)
-    dependencyResults <- fmap T.concat (sequence r2)
-    return (TextResult (moduleResults <> ", " <> dependencyResults))
+  let moduleResults = T.concat r1
+  let dependencyResults = T.concat r2
+  pure (TextResult (moduleResults <> ", " <> dependencyResults))
 
-loadModuleDependencies ::(PscIde m, MonadLogger m) =>
-                         ModuleIdent -> m (Either Error Text)
+loadModuleDependencies ::(PscIde m, MonadLogger m, MonadError PscIdeError m) =>
+                         ModuleIdent -> m Text
 loadModuleDependencies moduleName = do
   m <- getModule moduleName
   case getDependenciesForModule <$> m of
@@ -107,23 +106,23 @@ loadModuleDependencies moduleName = do
       depModules <- catMaybes <$> mapM getModule deps
       -- What to do with errors here? This basically means a reexported dependency
       -- doesn't exist in the output/ folder
-      _ <- traverse loadReexports depModules
-      return (Right ("Dependencies for " <> moduleName <> " loaded."))
-    Nothing -> return (Left (ModuleNotFound moduleName))
+      traverse_ loadReexports depModules
+      pure ("Dependencies for " <> moduleName <> " loaded.")
+    Nothing -> throwError (ModuleNotFound moduleName)
 
-loadReexports :: (PscIde m, MonadLogger m) =>
-                Module -> m (Either Error [ModuleIdent])
+loadReexports :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
+                Module -> m [ModuleIdent]
 loadReexports m = case getReexports m of
-  [] -> return (Right [])
-  exportDeps -> runEitherT $ do
+  [] -> pure []
+  exportDeps -> do
     -- I'm fine with this crashing on a failed pattern match.
     -- If this ever fails I'll need to look at GADTs
     let reexports = map (\(Export mn) -> mn) exportDeps
-    lift $ $(logDebug) ("Loading reexports for module: " <> fst m <>
-                        " reexports: " <> T.concat reexports)
-    _ <- traverse (EitherT . loadModule) reexports
-    exportDepsModules <- lift $ catMaybes <$> traverse getModule reexports
-    exportDepDeps <- traverse (EitherT . loadReexports) exportDepsModules
+    $(logDebug) ("Loading reexports for module: " <> fst m <>
+                 " reexports: " <> T.concat reexports)
+    traverse_ loadModule reexports
+    exportDepsModules <- catMaybes <$> traverse getModule reexports
+    exportDepDeps <- traverse loadReexports exportDepsModules
     return $ concat exportDepDeps
 
 getDependenciesForModule :: Module -> [ModuleIdent]
@@ -131,25 +130,24 @@ getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls
   where getDependencyName (Dependency dependencyName _) = Just dependencyName
         getDependencyName _ = Nothing
 
-loadModule :: (PscIde m, MonadLogger m) =>
-              ModuleIdent -> m (Either Error Text)
-loadModule mn = runEitherT $ do
-  path <- EitherT (filePathFromModule mn)
-  EitherT (loadExtern path)
-  lift $ $(logDebug) ("Loaded extern file at: " <> T.pack path)
-  return ("Loaded extern file at: " <> T.pack path)
+loadModule :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
+              ModuleIdent -> m Text
+loadModule mn = do
+  path <- filePathFromModule mn
+  loadExtern path
+  $(logDebug) ("Loaded extern file at: " <> T.pack path)
+  pure ("Loaded extern file at: " <> T.pack path)
 
-filePathFromModule :: PscIde m => ModuleIdent -> m (Either Error FilePath)
+filePathFromModule :: (PscIde m, MonadError PscIdeError m) =>
+                      ModuleIdent -> m FilePath
 filePathFromModule moduleName = do
   outputPath <- confOutputPath . envConfiguration <$> ask
-  liftIO $ do
-    cwd <- liftIO getCurrentDirectory
-    let path = cwd </> outputPath </> T.unpack moduleName </> "externs.json"
-    ex <- liftIO $ doesFileExist path
-    return $
-      if ex
-      then Right path
-      else Left (ModuleFileNotFound moduleName)
+  cwd <- liftIO getCurrentDirectory
+  let path = cwd </> outputPath </> T.unpack moduleName </> "externs.json"
+  ex <- liftIO $ doesFileExist path
+  if ex
+    then pure path
+    else throwError (ModuleFileNotFound moduleName)
 
 -- | Taken from Data.Either.Utils
 maybeToEither :: MonadError e m =>

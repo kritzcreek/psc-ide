@@ -1,5 +1,5 @@
 module PureScript.Ide.Error
-       (ErrorMsg, Error(..), textError, first)
+       (ErrorMsg, PscIdeError(..), textError, first)
        where
 
 import           Data.Aeson
@@ -10,7 +10,7 @@ import qualified Text.Parsec.Error      as P
 
 type ErrorMsg = String
 
-data Error
+data PscIdeError
     = GeneralError ErrorMsg
     | NotFound Text
     | ModuleNotFound ModuleIdent
@@ -18,14 +18,14 @@ data Error
     | ParseError P.ParseError ErrorMsg
     deriving (Show, Eq)
 
-instance ToJSON Error where
+instance ToJSON PscIdeError where
   toJSON err = object
                [
                  "resultType" .= ("error" :: Text),
                  "result" .= textError err
                ]
 
-textError :: Error -> Text
+textError :: PscIdeError -> Text
 textError (GeneralError msg)           = pack msg
 textError (NotFound ident)             = "Symbol '" <> ident <> "' not found."
 textError (ModuleNotFound ident)       = "Module '" <> ident <> "' not found."

@@ -10,6 +10,7 @@ import           Control.Exception        (bracketOnError)
 import           Control.Monad
 import           "monad-logger" Control.Monad.Logger
 import           Control.Monad.Reader
+import           Control.Monad.Except
 import qualified Data.Text                as T
 import qualified Data.Text.IO             as T
 import           Data.Version             (showVersion)
@@ -99,7 +100,7 @@ startServer port env = withSocketsDo $ do
       (cmd,h) <- acceptCommand sock
       case decodeT cmd of
         Just cmd' -> do
-          result <- handleCommand cmd'
+          result <- runExceptT (handleCommand cmd')
           $(logDebug) ("Answer was: " <> T.pack (show result))
           liftIO (hFlush stdout)
           case result of
@@ -126,26 +127,26 @@ acceptCommand sock = do
      hSetBuffering h LineBuffering
      pure h
 
-handleCommand :: (PscIde m, MonadLogger m) =>
-                 Command -> m (Either Error Success)
+handleCommand :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
+                 Command -> m Success
 handleCommand (Load modules deps) =
     loadModulesAndDeps modules deps
 handleCommand (Type search filters) =
-    Right <$> findType search filters
+    findType search filters
 handleCommand (Complete filters matcher) =
-    Right <$> findCompletions filters matcher
+    findCompletions filters matcher
 handleCommand (Pursuit query Package) =
-    Right <$> findPursuitPackages query
+    findPursuitPackages query
 handleCommand (Pursuit query Identifier) =
-    Right <$> findPursuitCompletions query
+    findPursuitCompletions query
 handleCommand (List LoadedModules) =
-    Right <$> printModules
+    printModules
 handleCommand (List AvailableModules) =
-    Right <$> listAvailableModules
+    listAvailableModules
 handleCommand (List (Imports fp)) =
     importsForFile fp
 handleCommand (CaseSplit l b e t) =
-    Right <$> caseSplit l b e t
+    caseSplit l b e t
 handleCommand Cwd =
-    Right . TextResult . T.pack <$> liftIO getCurrentDirectory
-handleCommand Quit = Right <$> liftIO exitSuccess
+    TextResult . T.pack <$> liftIO getCurrentDirectory
+handleCommand Quit = liftIO exitSuccess

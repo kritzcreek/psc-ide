@@ -3,7 +3,7 @@ module PureScript.Ide.Watcher where
 
 import           Control.Concurrent          (threadDelay)
 import           Control.Concurrent.STM
-import           Control.Monad               (forever, when)
+import           Control.Monad.Except
 import qualified Data.Map                    as M
 import           Data.Maybe                  (isJust)
 import           Language.PureScript.Externs
@@ -16,7 +16,7 @@ import           System.FSNotify
 
 reloadFile :: TVar PscState -> FilePath -> IO ()
 reloadFile stateVar fp = do
-  (Right ef@ExternsFile{..}) <- readExternFile fp
+  (Right ef@ExternsFile{..}) <- runExceptT $ readExternFile fp
   reloaded <- atomically $ do
     st <- readTVar stateVar
     if isLoaded efModuleName st

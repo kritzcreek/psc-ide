@@ -9,6 +9,7 @@ module PureScript.Ide.CaseSplit where
 import           Control.Concurrent.STM
 import           "monad-logger" Control.Monad.Logger
 import           Control.Monad.Reader
+import           Control.Monad.Except
 -- import Control.Lens
 import qualified Data.Map                    as M
 import           Data.Monoid
@@ -21,6 +22,7 @@ import           Language.PureScript.Pretty
 import           Language.PureScript.Environment
 import           PureScript.Ide.Completion
 import           PureScript.Ide.State
+import           PureScript.Ide.Error
 import           PureScript.Ide.Types hiding (Type)
 
 type Constructor = (Text, [(Text, Text)])
@@ -31,50 +33,44 @@ getExternFiles = do
   stateVar <- envStateVar <$> ask
   liftIO $ externsFiles <$> readTVarIO stateVar
 
-findConstructors :: (PscIde m, MonadLogger m) =>
+findConstructors :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
                     Text -> m [ExternsDeclaration]
 findConstructors q = do
-  module' <- findModuleForDatatype q
-  case module' of
+  m <- findModuleForDatatype q
+  ef' <- M.lookup m <$> getExternFiles
+  case ef' of
     Nothing -> do
-        $(logDebug) $ "Couldn't find module for query: " <> q
-        pure []
-    Just m -> do
-      efs <- getExternFiles
-      ef' <- M.lookup m <$> getExternFiles
-      case ef' of
-        Nothing -> do
-          $(logDebug) $ "Couldn't find ExternFile for query: " <> q
-          pure []
-        Just ef -> do
-          -- $(logDebug) $ (T.pack . show $ findConstructors' (ProperName (T.unpack q)) ef)
-          pure $ findConstructors' (ProperName (T.unpack q)) ef
-
-caseSplit :: (PscIde m, MonadLogger m) =>
-             Text -> m [Constructor]
-caseSplit q = do
-  ctors <- findConstructors q
-  pure $ map mkCtor ctors
-
-mkCtor :: ExternsDeclaration -> Constructor
-mkCtor EDDataConstructor{..} = (T.pack $ runProperName edDataCtorName, args)
-  where
-    args = map (\t -> ("?x", T.strip . T.pack . prettyPrintType $ t)) ts
-    (ts, _) = splitType edDataCtorType
-mkCtor _ = error "lulz"
-
-findModuleForDatatype :: (PscIde m, MonadIO m, MonadLogger m) =>
-                         Text -> m (Maybe ModuleName)
-findModuleForDatatype q = do
-  matches <- getExactMatches q [] <$> getAllModulesWithReexports
-  pure $ case matches of
-    [] -> Nothing
-    ((Completion (mn, _, _)):_) -> Just $ moduleNameFromString (T.unpack mn)
+      $(logDebug) $ "Couldn't find ExternFile for query: " <> q
+      throwError . NotFound $
+        "Couldn't find ExternFile for query: " <> q <> " Did you maybe forget to load it?"
+    Just ef -> do
+      pure $ findConstructors' (ProperName (T.unpack q)) ef
 
 findConstructors' :: ProperName -> ExternsFile -> [ExternsDeclaration]
 findConstructors' pn ef = filter doesConstruct (efDeclarations ef)
   where doesConstruct EDDataConstructor{..} = pn == edDataCtorTypeCtor
         doesConstruct _ = False
+
+caseSplit :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
+             Text -> m [Constructor]
+caseSplit q = do
+  ctors <- findConstructors q
+  pure (map mkCtor ctors)
+
+mkCtor :: ExternsDeclaration -> Constructor
+mkCtor EDDataConstructor{..} = (T.pack $ runProperName edDataCtorName, args)
+  where
+    args = map (\t -> ("_", T.strip . T.pack . prettyPrintType $ t)) ts
+    (ts, _) = splitType edDataCtorType
+mkCtor _ = error "lulz"
+
+findModuleForDatatype :: (PscIde m, MonadIO m, MonadLogger m, MonadError PscIdeError m) =>
+                         Text -> m ModuleName
+findModuleForDatatype q = do
+  matches <- getExactMatches q [] <$> getAllModulesWithReexports
+  case matches of
+    [] -> throwError . NotFound $ "Could not find a module for query: " <> q
+    ((Completion (mn, _, _)):_) -> pure (moduleNameFromString (T.unpack mn))
 
 splitType :: Type -> ([Type], Type)
 splitType t = (arguments, returns)
@@ -106,6 +102,9 @@ prettyCtor (ctorName, ctorArgs) = "("<> ctorName <> " " <> T.unwords (map pretty
 
 prettyCtorArg :: (Text, Text) -> Text
 prettyCtorArg (s, t) = "(" <> s <> " :: " <> t <> ")"
+
+prettyCtorArgWithoutType :: (Text, Text) -> Text
+prettyCtorArgWithoutType (s, _) = s
 
 makePattern ::
   Text ->
