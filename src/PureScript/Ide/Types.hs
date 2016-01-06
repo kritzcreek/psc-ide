@@ -12,12 +12,11 @@ import           Control.Monad.Trans
 import           Data.Aeson
 import           Data.Map.Lazy                        as M
 import           Data.Maybe                           (maybeToList)
-import           Data.Monoid
 import           Data.Text                            (Text ())
 import qualified Language.PureScript.AST.Declarations as D
-import qualified Language.PureScript.Names            as N
 import           Language.PureScript.Externs
 import           Language.PureScript.Names
+import qualified Language.PureScript.Names            as N
 
 type ModuleIdent = Text
 type DeclIdent   = Text
@@ -69,7 +68,7 @@ type PscIde m = (MonadIO m, MonadReader PscEnvironment m)
 data PscState =
   PscState {
     pscStateModules :: M.Map Text [ExternDecl]
-  , externsFiles :: M.Map ModuleName ExternsFile
+  , externsFiles    :: M.Map ModuleName ExternsFile
   } deriving Show
 
 emptyPscState :: PscState
@@ -82,8 +81,8 @@ newtype Completion =
 data ModuleImport =
   ModuleImport {
     importModuleName :: ModuleIdent
-  , importType :: D.ImportDeclarationType
-  , importQualifier :: Maybe Text
+  , importType       :: D.ImportDeclarationType
+  , importQualifier  :: Maybe Text
   } deriving(Show)
 
 instance Eq ModuleImport where
@@ -142,9 +141,6 @@ instance ToJSON Success where
   toJSON (PursuitResult resp) = encodeSuccess resp
   toJSON (ImportList decls) = encodeSuccess decls
   toJSON (ModuleList modules) = encodeSuccess modules
-
-newtype Filter = Filter (Endo [Module]) deriving(Monoid)
-newtype Matcher = Matcher (Endo [Completion]) deriving(Monoid)
 
 newtype PursuitQuery = PursuitQuery Text
                      deriving (Show, Eq)

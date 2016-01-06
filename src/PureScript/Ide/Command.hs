@@ -78,37 +78,3 @@ instance FromJSON Command where
         return $ CaseSplit line begin end type'
       _ -> mzero
 
-instance FromJSON Filter where
-  parseJSON = withObject "filter" $ \o -> do
-    (filter' :: String) <- o .: "filter"
-    case filter' of
-      "exact" -> do
-        params <- o .: "params"
-        search <- params .: "search"
-        return $ equalityFilter search
-      "prefix" -> do
-        params <- o.: "params"
-        search <- params .: "search"
-        return $ prefixFilter search
-      "modules" -> do
-        params <- o .: "params"
-        modules <- params .: "modules"
-        return $ moduleFilter modules
-      "dependencies" -> do
-        params <- o .: "params"
-        deps <- params .: "modules"
-        return $ dependencyFilter deps
-      _ -> mzero
-
-instance FromJSON Matcher where
-  parseJSON = withObject "matcher" $ \o -> do
-    (matcher :: Maybe String) <- o .:? "matcher"
-    case matcher of
-      Just "flex" -> do
-        params <- o .: "params"
-        search <- params .: "search"
-        return $ flexMatcher search
-      Just "helm" -> error "Helm matcher not implemented yet."
-      Just "distance" -> error "Distance matcher not implemented yet."
-      Just _ -> mzero
-      Nothing -> return mempty

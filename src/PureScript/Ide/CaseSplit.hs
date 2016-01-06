@@ -42,9 +42,9 @@ findConstructors q = do
     Nothing -> do
       $(logDebug) $ "Couldn't find ExternFile for query: " <> q
       throwError . NotFound $
-        "Couldn't find ExternFile for query: " <> q <> " Did you maybe forget to load it?"
-    Just ef -> do
-      pure $ findConstructors' (ProperName (T.unpack q)) ef
+        "Couldn't find Module for query: " <>
+        q <> " Did you maybe forget to load it?"
+    Just ef -> pure $ findConstructors' (ProperName (T.unpack q)) ef
 
 findConstructors' :: ProperName -> ExternsFile -> [ExternsDeclaration]
 findConstructors' pn ef = filter doesConstruct (efDeclarations ef)
@@ -70,7 +70,7 @@ findModuleForDatatype q = do
   matches <- getExactMatches q [] <$> getAllModulesWithReexports
   case matches of
     [] -> throwError . NotFound $ "Could not find a module for query: " <> q
-    ((Completion (mn, _, _)):_) -> pure (moduleNameFromString (T.unpack mn))
+    (Completion (mn, _, _):_) -> pure (moduleNameFromString (T.unpack mn))
 
 splitType :: Type -> ([Type], Type)
 splitType t = (arguments, returns)
@@ -89,8 +89,8 @@ makeCases ::
   Int -> -- ^ The argument to split on
   [Constructor] -> -- ^ the cases to cover
   [Text]
-makeCases fName args n ctors =
-  map makeLine ctors
+makeCases fName args n =
+  map makeLine
   where
     argsl = take n args
     argsr = drop (n+1) args
@@ -107,10 +107,11 @@ prettyCtorArgWithoutType :: (Text, Text) -> Text
 prettyCtorArgWithoutType (s, _) = s
 
 makePattern ::
-  Text ->
-  Int -> Int ->
-  [Constructor] ->
+  Text -> -- ^ current line
+  Int -> -- ^ begin of the split
+  Int -> -- ^ end of the split
+  [Constructor] -> -- ^ constructors to split
   [Text]
-makePattern t x y ctors = makePattern' (T.take x t) (T.drop y t) ctors
+makePattern t x y = makePattern' (T.take x t) (T.drop y t)
   where
     makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor ctor <> rhs)

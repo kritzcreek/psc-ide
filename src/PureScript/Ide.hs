@@ -22,6 +22,8 @@ import           PureScript.Ide.Error
 import           PureScript.Ide.Types
 import           PureScript.Ide.SourceFile
 import           PureScript.Ide.State
+import           PureScript.Ide.Filter
+import           PureScript.Ide.Matcher
 import           PureScript.Ide.Reexports
 import qualified PureScript.Ide.CaseSplit as CS
 import           System.FilePath

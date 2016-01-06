@@ -1,13 +1,19 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 module PureScript.Ide.Filter
-       (moduleFilter, prefixFilter, equalityFilter, dependencyFilter,
+       (Filter, moduleFilter, prefixFilter, equalityFilter, dependencyFilter,
         runFilter, applyFilters)
        where
 
+import           Control.Monad
+import           Data.Aeson
 import           Data.Foldable
 import           Data.Maybe           (listToMaybe, mapMaybe)
 import           Data.Monoid
 import           Data.Text            (Text, isPrefixOf)
 import           PureScript.Ide.Types
+
+newtype Filter = Filter (Endo [Module]) deriving(Monoid)
 
 mkFilter :: ([Module] -> [Module]) -> Filter
 mkFilter = Filter . Endo
@@ -77,3 +83,25 @@ runFilter (Filter f)= appEndo f
 
 applyFilters :: [Filter] -> [Module] -> [Module]
 applyFilters = runFilter . fold
+
+instance FromJSON Filter where
+  parseJSON = withObject "filter" $ \o -> do
+    (filter' :: String) <- o .: "filter"
+    case filter' of
+      "exact" -> do
+        params <- o .: "params"
+        search <- params .: "search"
+        return $ equalityFilter search
+      "prefix" -> do
+        params <- o.: "params"
+        search <- params .: "search"
+        return $ prefixFilter search
+      "modules" -> do
+        params <- o .: "params"
+        modules <- params .: "modules"
+        return $ moduleFilter modules
+      "dependencies" -> do
+        params <- o .: "params"
+        deps <- params .: "modules"
+        return $ dependencyFilter deps
+      _ -> mzero
