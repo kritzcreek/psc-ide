@@ -88,6 +88,34 @@ The following format is returned as the Result:
 ]
 ```
 
+
+### CaseSplit
+The CaseSplit command takes a line of source code, an area in that line of code and replaces it with all patterns for a given type:
+
+```json
+{
+ "command": "caseSplit",
+ "params": {
+  "line": "elem a as",
+  "begin": 8,
+  "end": 10,
+  "type": "List"
+ }
+}
+```
+
+**Result:**
+
+The following format is returned as the Result:
+
+```json
+[
+  "elem a Nil",
+  "elem a (Cons (_ :: a) (_ :: List a))"
+]
+```
+You should then be able to replace the affected line of code in the editor with the new suggestions.
+
 ### Pursuit
 The `pursuit` command looks up the packages/completions for a given identifier from Pursuit.
 
