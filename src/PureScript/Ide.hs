@@ -134,6 +134,7 @@ getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls
 
 loadModule :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
               ModuleIdent -> m Text
+loadModule "Prim" = pure "Prim won't be loaded"
 loadModule mn = do
   path <- filePathFromModule mn
   loadExtern path
