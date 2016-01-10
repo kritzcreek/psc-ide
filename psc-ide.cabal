@@ -24,6 +24,8 @@ library
                        , PureScript.Ide.Matcher
                        , PureScript.Ide.Filter
                        , PureScript.Ide.Types
+                       , PureScript.Ide.State
+                       , PureScript.Ide.CaseSplit
                        , PureScript.Ide.SourceFile
                        , PureScript.Ide.Watcher
                        , PureScript.Ide.Reexports
@@ -93,7 +95,7 @@ test-suite spec
   build-depends:       base    >= 4.7 && < 5
                      , containers
                      , hspec
-                     , mtl
                      , monad-logger
+                     , mtl
                      , psc-ide
                      , stm

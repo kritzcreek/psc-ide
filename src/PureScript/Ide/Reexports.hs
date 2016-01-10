@@ -1,11 +1,11 @@
 {-# LANGUAGE TupleSections #-}
 module PureScript.Ide.Reexports where
 
-import Data.Maybe
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.List (union)
-import PureScript.Ide.Types
+import           Data.List            (union)
+import           Data.Map             (Map)
+import qualified Data.Map             as Map
+import           Data.Maybe
+import           PureScript.Ide.Types
 
 getReexports :: Module -> [ExternDecl]
 getReexports (mn, decls)= mapMaybe getExport decls
@@ -36,6 +36,7 @@ replaceReexports m db = result
 
         go :: Module -> ExternDecl -> Module
         go m' re@(Export name) = replaceReexport re m' (getModule name)
+        go _ _ = error "partiality! woohoo"
 
         getModule :: ModuleIdent -> Module
         getModule name = clean res
@@ -43,3 +44,10 @@ replaceReexports m db = result
                 -- we have to do this because keeping self exports in will result in
                 -- infinite loops
                 clean (mn, decls) = (mn,) (filter (/= Export mn) decls)
+
+resolveReexports :: Map ModuleIdent [ExternDecl] -> Module ->  Module
+resolveReexports modules m = do
+  let replaced = replaceReexports m modules
+  if null . getReexports $ replaced
+    then replaced
+    else resolveReexports modules replaced

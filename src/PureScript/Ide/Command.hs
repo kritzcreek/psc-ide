@@ -3,6 +3,7 @@ module PureScript.Ide.Command where
 
 import           Control.Monad
 import           Data.Aeson
+import           Data.Text (Text)
 import           Data.Maybe
 import           PureScript.Ide.Filter
 import           PureScript.Ide.Matcher
@@ -18,6 +19,11 @@ data Command
     | Pursuit { pursuitQuery      :: PursuitQuery
               , pursuitSearchType :: PursuitSearchType}
     | List {listType :: ListType}
+    | CaseSplit {
+      caseSplitLine :: Text
+      , caseSplitBegin :: Int
+      , caseSplitEnd :: Int
+      , caseSplitType :: Type}
     | Cwd
     | Quit
 
@@ -63,39 +69,12 @@ instance FromJSON Command where
         query <- params .: "query"
         queryType <- params .: "type"
         return $ Pursuit query queryType
+      "caseSplit" -> do
+        params <- o .: "params"
+        line <- params .: "line"
+        begin <- params .: "begin"
+        end <- params .: "end"
+        type' <- params .: "type"
+        return $ CaseSplit line begin end type'
       _ -> mzero
 
-instance FromJSON Filter where
-  parseJSON = withObject "filter" $ \o -> do
-    (filter' :: String) <- o .: "filter"
-    case filter' of
-      "exact" -> do
-        params <- o .: "params"
-        search <- params .: "search"
-        return $ equalityFilter search
-      "prefix" -> do
-        params <- o.: "params"
-        search <- params .: "search"
-        return $ prefixFilter search
-      "modules" -> do
-        params <- o .: "params"
-        modules <- params .: "modules"
-        return $ moduleFilter modules
-      "dependencies" -> do
-        params <- o .: "params"
-        deps <- params .: "modules"
-        return $ dependencyFilter deps
-      _ -> mzero
-
-instance FromJSON Matcher where
-  parseJSON = withObject "matcher" $ \o -> do
-    (matcher :: Maybe String) <- o .:? "matcher"
-    case matcher of
-      Just "flex" -> do
-        params <- o .: "params"
-        search <- params .: "search"
-        return $ flexMatcher search
-      Just "helm" -> error "Helm matcher not implemented yet."
-      Just "distance" -> error "Distance matcher not implemented yet."
-      Just _ -> mzero
-      Nothing -> return mempty

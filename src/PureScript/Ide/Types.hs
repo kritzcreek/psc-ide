@@ -12,9 +12,10 @@ import           Control.Monad.Trans
 import           Data.Aeson
 import           Data.Map.Lazy                        as M
 import           Data.Maybe                           (maybeToList)
-import           Data.Monoid
 import           Data.Text                            (Text ())
 import qualified Language.PureScript.AST.Declarations as D
+import           Language.PureScript.Externs
+import           Language.PureScript.Names
 import qualified Language.PureScript.Names            as N
 
 type ModuleIdent = Text
@@ -51,36 +52,38 @@ instance ToJSON ExternDecl where
 type Module = (ModuleIdent, [ExternDecl])
 
 data Configuration =
-  Configuration
-  {
+  Configuration {
     confOutputPath :: FilePath
   , confDebug      :: Bool
   }
 
 data PscEnvironment =
-  PscEnvironment
-  {
+  PscEnvironment {
     envStateVar      :: TVar PscState
   , envConfiguration :: Configuration
   }
 
 type PscIde m = (MonadIO m, MonadReader PscEnvironment m)
 
-data PscState = PscState
-    { pscStateModules :: M.Map Text [ExternDecl]
-    } deriving (Show,Eq)
+data PscState =
+  PscState {
+    pscStateModules :: M.Map Text [ExternDecl]
+  , externsFiles    :: M.Map ModuleName ExternsFile
+  } deriving Show
 
 emptyPscState :: PscState
-emptyPscState = PscState M.empty
+emptyPscState = PscState M.empty M.empty
 
 newtype Completion =
     Completion (ModuleIdent, DeclIdent, Type)
     deriving (Show,Eq)
 
-data ModuleImport = ModuleImport {
-  importModuleName :: ModuleIdent,
-  importType       :: D.ImportDeclarationType,
-  importQualifier  :: Maybe Text} deriving(Show)
+data ModuleImport =
+  ModuleImport {
+    importModuleName :: ModuleIdent
+  , importType       :: D.ImportDeclarationType
+  , importQualifier  :: Maybe Text
+  } deriving(Show)
 
 instance Eq ModuleImport where
   mi1 == mi2 = importModuleName mi1 == importModuleName mi2
@@ -121,6 +124,7 @@ instance ToJSON Completion where
 data Success =
   CompletionResult [Completion]
   | TextResult Text
+  | MultilineTextResult [Text]
   | PursuitResult [PursuitResponse]
   | ImportList [ModuleImport]
   | ModuleList [ModuleIdent]
@@ -133,12 +137,10 @@ encodeSuccess res =
 instance ToJSON Success where
   toJSON (CompletionResult cs) = encodeSuccess cs
   toJSON (TextResult t) = encodeSuccess t
+  toJSON (MultilineTextResult ts) = encodeSuccess ts
   toJSON (PursuitResult resp) = encodeSuccess resp
   toJSON (ImportList decls) = encodeSuccess decls
   toJSON (ModuleList modules) = encodeSuccess modules
-
-newtype Filter = Filter (Endo [Module]) deriving(Monoid)
-newtype Matcher = Matcher (Endo [Completion]) deriving(Monoid)
 
 newtype PursuitQuery = PursuitQuery Text
                      deriving (Show, Eq)

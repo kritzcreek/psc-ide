@@ -1,5 +1,9 @@
-module PureScript.Ide.Matcher (flexMatcher, runMatcher) where
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+module PureScript.Ide.Matcher (Matcher, flexMatcher, runMatcher) where
 
+import           Control.Monad
+import           Data.Aeson
 import           Data.Function        (on)
 import           Data.List            (sortBy)
 import           Data.Maybe           (mapMaybe)
@@ -11,6 +15,21 @@ import           Text.Regex.TDFA      ((=~))
 
 
 type ScoredCompletion = (Completion, Double)
+
+newtype Matcher = Matcher (Endo [Completion]) deriving(Monoid)
+
+instance FromJSON Matcher where
+  parseJSON = withObject "matcher" $ \o -> do
+    (matcher :: Maybe String) <- o .:? "matcher"
+    case matcher of
+      Just "flex" -> do
+        params <- o .: "params"
+        search <- params .: "search"
+        pure $ flexMatcher search
+      Just "helm" -> error "Helm matcher not implemented yet."
+      Just "distance" -> error "Distance matcher not implemented yet."
+      Just _ -> mzero
+      Nothing -> return mempty
 
 -- | Matches any occurence of the search string with intersections
 -- |

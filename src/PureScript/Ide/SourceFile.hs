@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module PureScript.Ide.SourceFile where
 
+import Control.Monad.Except
 import           Data.Maybe                           (mapMaybe)
 import           Data.Monoid
 import qualified Data.Text                            as T
@@ -12,16 +13,17 @@ import qualified Language.PureScript.AST.SourcePos    as SP
 import qualified Language.PureScript.Names            as N
 import           System.Directory
 
-parseModuleFromFile :: FilePath -> IO (Either Error D.Module)
+parseModuleFromFile :: (MonadIO m, MonadError PscIdeError m) =>
+                       FilePath -> m D.Module
 parseModuleFromFile fp = do
-  exists <- doesFileExist fp
+  exists <- liftIO (doesFileExist fp)
   if exists
     then do
-      content <- readFile fp
+      content <- liftIO (readFile fp)
       let m = do tokens <- P.lex fp content
                  P.runTokenParser "" P.parseModule tokens
-      return (first (`ParseError` "File could not be parsed.") m)
-    else return $ Left (NotFound "File does not exist.")
+      either (throwError . (`ParseError` "File could not be parsed.")) pure m
+    else throwError (NotFound "File does not exist.")
 
 -- data Module = Module SourceSpan [Comment] ModuleName [Declaration] (Maybe [DeclarationRef])
 
@@ -35,11 +37,12 @@ getImports (D.Module _ _ _ declarations _) =
     isImport (D.PositionedDeclaration _ _ (i@D.ImportDeclaration{})) = Just i
     isImport _ = Nothing
 
-getImportsForFile :: FilePath -> IO (Either Error [ModuleImport])
+getImportsForFile :: (MonadIO m, MonadError PscIdeError m) =>
+                     FilePath -> m [ModuleImport]
 getImportsForFile fp = do
   module' <- parseModuleFromFile fp
-  let imports = getImports <$> module'
-  return (fmap (mkModuleImport . unwrapPositionedImport) <$> imports)
+  let imports = getImports module'
+  pure (mkModuleImport . unwrapPositionedImport <$> imports)
   where mkModuleImport (D.ImportDeclaration mn importType' qualifier) =
           ModuleImport
             (T.pack (N.runModuleName mn))
@@ -96,7 +99,7 @@ getDeclPosition m ident =
 
 goToDefinition :: String -> FilePath -> IO (Maybe SP.SourceSpan)
 goToDefinition q fp = do
-  m <- parseModuleFromFile fp
+  m <- runExceptT (parseModuleFromFile fp)
   case m of
     Right module' -> return $ getDeclPosition module' q
     Left _ -> return Nothing

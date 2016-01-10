@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -10,11 +11,13 @@ module PureScript.Ide.Externs
     DeclIdent,
     Type,
     Fixity(..),
-    readExternFile
+    readExternFile,
+    convertExterns
   ) where
 
 
 import           Data.Maybe                  (mapMaybe)
+import           Control.Monad.Except
 import qualified Data.Text                   as T
 import qualified Data.Text.IO                as T
 import qualified Language.PureScript.Externs as PE
@@ -22,15 +25,16 @@ import qualified Language.PureScript.AST.Declarations as D
 import qualified Language.PureScript.Names   as N
 import qualified Language.PureScript.Pretty  as PP
 import           PureScript.Ide.CodecJSON
-import           PureScript.Ide.Error        (Error (..))
+import           PureScript.Ide.Error        (PscIdeError (..))
 import           PureScript.Ide.Types
 
-readExternFile :: FilePath -> IO (Either Error Module)
+readExternFile :: (MonadIO m, MonadError PscIdeError m) =>
+                  FilePath -> m PE.ExternsFile
 readExternFile fp = do
-   (parseResult :: Maybe PE.ExternsFile) <- decodeT <$> T.readFile fp
+   parseResult <- liftIO (decodeT <$> T.readFile fp)
    case parseResult of
-     Nothing -> return . Left . GeneralError $ "Parsing the extern at: " ++ fp ++ " failed"
-     Just externs -> return (Right (convertExterns externs))
+     Nothing -> throwError . GeneralError $ "Parsing the extern at: " ++ fp ++ " failed"
+     Just externs -> pure externs
 
 moduleNameToText :: N.ModuleName -> T.Text
 moduleNameToText = T.pack . N.runModuleName
