@@ -354,7 +354,7 @@ The Distance matcher isn't implemented at this point.
   "matcher": "distance",
   "params": {
     "search": "dilterM",
-    "maxDist": 3
+    "maximumDistance": 3
   }
 }
 ```
