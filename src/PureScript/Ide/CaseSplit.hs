@@ -47,7 +47,7 @@ findConstructors q = do
         q <> " Did you maybe forget to load it?"
     Just ef -> pure $ findConstructors' (ProperName (T.unpack q)) ef
 
-findConstructors' :: ProperName 'TypeName -> ExternsFile -> [ExternsDeclaration]
+findConstructors' :: ProperName -> ExternsFile -> [ExternsDeclaration]
 findConstructors' pn ef = filter doesConstruct (efDeclarations ef)
   where doesConstruct EDDataConstructor{..} = pn == edDataCtorTypeCtor
         doesConstruct _ = False

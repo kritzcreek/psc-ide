@@ -54,7 +54,7 @@ getImportsForFile fp = do
         unwrapPositionedImport x = x
         unwrapImportType (D.Explicit decls) = D.Explicit (map unwrapPositionedRef decls)
         unwrapImportType (D.Hiding decls)   = D.Hiding (map unwrapPositionedRef decls)
-        unwrapImportType D.Implicit         = D.Implicit
+        unwrapImportType (D.Implicit b)     = D.Implicit b
 
 getPositionedImports :: D.Module -> [D.Declaration]
 getPositionedImports (D.Module _ _ _ declarations _) =
