@@ -89,8 +89,11 @@ The following format is returned as the Result:
 ```
 
 
-### CaseSplit
-The CaseSplit command takes a line of source code, an area in that line of code and replaces it with all patterns for a given type:
+### CaseSplit 
+
+The CaseSplit command takes a line of source code, an area in that line of code
+and replaces it with all patterns for a given type. The parameter `annotations`
+is used to turn type annotations on or off for the constructor fields.
 
 ```json
 {
@@ -99,6 +102,7 @@ The CaseSplit command takes a line of source code, an area in that line of code 
   "line": "elem a as",
   "begin": 8,
   "end": 10,
+  "annotations": true,
   "type": "List"
  }
 }

@@ -9,7 +9,7 @@ import           Control.Monad.Except
 import           "monad-logger" Control.Monad.Logger
 import           Control.Monad.Reader.Class
 import qualified Data.Map.Lazy               as M
-import           Data.Maybe                  (catMaybes, mapMaybe)
+import           Data.Maybe                  (catMaybes)
 import           Data.Monoid
 import qualified Data.Text                   as T
 import           Language.PureScript.Externs
@@ -23,6 +23,12 @@ getPscIdeState :: PscIde m =>
 getPscIdeState = do
   stateVar <- envStateVar <$> ask
   liftIO $ pscStateModules <$> readTVarIO stateVar
+
+getExternFiles :: (PscIde m) =>
+                  m (M.Map ModuleName ExternsFile)
+getExternFiles = do
+  stateVar <- envStateVar <$> ask
+  liftIO (externsFiles <$> readTVarIO stateVar)
 
 getAllDecls :: PscIde m => m [ExternDecl]
 getAllDecls = concat <$> getPscIdeState

@@ -8,6 +8,7 @@ import           Data.Maybe
 import           PureScript.Ide.Filter
 import           PureScript.Ide.Matcher
 import           PureScript.Ide.Types
+import           PureScript.Ide.CaseSplit
 
 data Command
     = Load { loadModules      :: [ModuleIdent]
@@ -23,6 +24,7 @@ data Command
       caseSplitLine :: Text
       , caseSplitBegin :: Int
       , caseSplitEnd :: Int
+      , caseSplitAnnotations :: CaseSplitAnnotations
       , caseSplitType :: Type}
     | Cwd
     | Quit
@@ -74,7 +76,10 @@ instance FromJSON Command where
         line <- params .: "line"
         begin <- params .: "begin"
         end <- params .: "end"
+        annotations <- params .: "annotations"
         type' <- params .: "type"
-        return $ CaseSplit line begin end type'
+        return $ CaseSplit line begin end (if annotations
+                                           then explicitAnnotations
+                                           else noAnnotations) type'
       _ -> mzero
 

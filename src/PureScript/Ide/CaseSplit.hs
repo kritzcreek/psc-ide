@@ -6,14 +6,17 @@
 {-# LANGUAGE LambdaCase       #-}
 
 
-module PureScript.Ide.CaseSplit where
+module PureScript.Ide.CaseSplit
+       ( CaseSplitAnnotations()
+       , explicitAnnotations
+       , noAnnotations
+       , makePattern
+       , caseSplit
+       ) where
 
-import           Control.Concurrent.STM
 import           "monad-logger" Control.Monad.Logger
-import           Control.Monad.Reader
 import           Control.Monad.Except
-import Data.List (find)
-import qualified Data.Map                    as M
+import           Data.List (find)
 import           Data.Monoid
 import           Data.Text                   (Text)
 import qualified Data.Text                   as T
@@ -27,20 +30,19 @@ import           Language.PureScript.Parser.Lexer (lex)
 import           Language.PureScript.Parser.Common (runTokenParser)
 import           Prelude hiding (lex)
 import           PureScript.Ide.Error
+import           PureScript.Ide.State
 import           PureScript.Ide.Types hiding (Type)
 import           Text.Parsec as P
 
 type Constructor = (ProperName 'ConstructorName, [Type])
 
-getExternFiles :: (PscIde m) =>
-                  m (M.Map ModuleName ExternsFile)
-getExternFiles = do
-  stateVar <- envStateVar <$> ask
-  liftIO (externsFiles <$> readTVarIO stateVar)
+newtype CaseSplitAnnotations = CaseSplitAnnotations Bool
 
-isEDType :: ExternsDeclaration -> Bool
-isEDType (EDType _ _ _) = True
-isEDType _ = False
+explicitAnnotations :: CaseSplitAnnotations
+explicitAnnotations = CaseSplitAnnotations True
+
+noAnnotations :: CaseSplitAnnotations
+noAnnotations = CaseSplitAnnotations False
 
 caseSplit :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
              Text -> m [Constructor]
@@ -86,24 +88,26 @@ splitTypeConstructor = go []
     go acc (TypeConstructor tc) = pure (disqualify tc, acc)
     go _ _ = throwError (GeneralError "Failed to read TypeConstructor")
 
-prettyCtor :: Constructor -> Text
-prettyCtor (ctorName, []) = T.pack (runProperName ctorName)
-prettyCtor (ctorName, ctorArgs) =
+prettyCtor :: CaseSplitAnnotations -> Constructor -> Text
+prettyCtor _ (ctorName, []) = T.pack (runProperName ctorName)
+prettyCtor csa (ctorName, ctorArgs) =
   "("<> T.pack (runProperName ctorName) <> " "
-  <> T.unwords (map prettyCtorArg ctorArgs) <>")"
+  <> T.unwords (map (prettyCtorArg csa) ctorArgs) <>")"
 
-prettyCtorArg :: Type -> Text
-prettyCtorArg t = "( _ :: " <> T.pack (prettyPrintTypeAtom t) <> ")"
+prettyCtorArg :: CaseSplitAnnotations -> Type -> Text
+prettyCtorArg (CaseSplitAnnotations True) t = "( _ :: " <> T.strip (T.pack (prettyPrintTypeAtom t)) <> ")"
+prettyCtorArg (CaseSplitAnnotations False) _ = "_"
 
 makePattern ::
   Text -> -- ^ current line
   Int -> -- ^ begin of the split
   Int -> -- ^ end of the split
+  CaseSplitAnnotations -> -- ^ Wether to explicitly type the splits
   [Constructor] -> -- ^ constructors to split
   [Text]
-makePattern t x y = makePattern' (T.take x t) (T.drop y t)
+makePattern t x y csa = makePattern' (T.take x t) (T.drop y t)
   where
-    makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor ctor <> rhs)
+    makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor csa ctor <> rhs)
 
 parseType' :: String -> Type
 parseType' s = let (Right t) = do
