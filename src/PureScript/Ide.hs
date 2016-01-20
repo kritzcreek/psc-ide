@@ -80,6 +80,9 @@ caseSplit l b e csa t = do
   patterns <- CS.makePattern l b e csa <$> CS.caseSplit t
   pure (MultilineTextResult patterns)
 
+addClause :: Text -> CS.WildcardAnnotations -> Success
+addClause t wca = MultilineTextResult (CS.addClause t wca)
+
 importsForFile :: (MonadIO m, MonadLogger m, MonadError PscIdeError m) =>
                   FilePath -> m Success
 importsForFile fp = do

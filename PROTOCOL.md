@@ -120,6 +120,33 @@ The following format is returned as the Result:
 ```
 You should then be able to replace the affected line of code in the editor with the new suggestions.
 
+### Add Clause
+
+The AddClause command takes a typedeclaration and generates a function template for the given type.
+The `annotations` option turns type annotations on or off for the function arguments.
+
+```json
+{
+ "command": "addClause",
+ "params": {
+  "line": "elem :: forall a. (Eq a) => a -> List a",
+  "annotations": true
+ }
+}
+```
+
+**Result:**
+
+The following format is returned as the Result:
+
+```json
+[
+  "elem :: forall a. (Eq a) => a -> List a",
+  "elem ( _ :: a) = ?elem"
+]
+```
+You should then be able to replace the affected line of code in the editor with the new suggestions.
+
 ### Pursuit
 The `pursuit` command looks up the packages/completions for a given identifier from Pursuit.
 

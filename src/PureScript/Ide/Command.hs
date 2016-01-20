@@ -26,6 +26,9 @@ data Command
       , caseSplitEnd :: Int
       , caseSplitAnnotations :: WildcardAnnotations
       , caseSplitType :: Type}
+    | AddClause {
+      addClauseLine :: Text
+      , addClauseAnnotations :: WildcardAnnotations}
     | Cwd
     | Quit
 
@@ -81,5 +84,12 @@ instance FromJSON Command where
         return $ CaseSplit line begin end (if annotations
                                            then explicitAnnotations
                                            else noAnnotations) type'
+      "addClause" -> do
+        params <- o .: "params"
+        line <- params .: "line"
+        annotations <- params .: "annotations"
+        return $ AddClause line (if annotations
+                                 then explicitAnnotations
+                                 else noAnnotations)
       _ -> mzero
 

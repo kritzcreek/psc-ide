@@ -10,7 +10,7 @@ module PureScript.Ide.CaseSplit
        , explicitAnnotations
        , noAnnotations
        , makePattern
-       , makeTemplate
+       , addClause
        , caseSplit
        ) where
 
@@ -34,6 +34,7 @@ import           Prelude hiding (lex)
 import           PureScript.Ide.Error
 import           PureScript.Ide.State
 import           PureScript.Ide.Types hiding (Type)
+import           PureScript.Ide.SourceFile (unwrapPositioned)
 import           Text.Parsec as P
 
 type Constructor = (ProperName 'ConstructorName, [Type])
@@ -107,12 +108,21 @@ makePattern ::
   Text -> -- ^ current line
   Int -> -- ^ begin of the split
   Int -> -- ^ end of the split
-  WildcardAnnotations -> -- ^ Wether to explicitly type the splits
+  WildcardAnnotations -> -- ^ Whether to explicitly type the splits
   [Constructor] -> -- ^ constructors to split
   [Text]
 makePattern t x y wsa = makePattern' (T.take x t) (T.drop y t)
   where
     makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor wsa ctor <> rhs)
+
+addClause :: Text -> WildcardAnnotations -> [Text]
+addClause s wca =
+  let (fName, fType) = parseTypeDeclaration' (T.unpack s)
+      (args, _) = splitFunctionType fType
+      template = T.pack (runIdent fName) <> " " <>
+        T.unwords (map (prettyPrintWildcard wca) args) <>
+        " = ?" <> (T.strip . T.pack . runIdent $ fName)
+  in [s, template]
 
 parseType' :: String -> Type
 parseType' s = let (Right t) = do
@@ -121,18 +131,14 @@ parseType' s = let (Right t) = do
                in t
 
 parseTypeDeclaration' :: String -> (Ident, Type)
-parseTypeDeclaration' s = let (Right (TypeDeclaration i t)) = do
-                                ts <- lex "" s
-                                runTokenParser "" (parseTypeDeclaration <* P.eof) ts
-                          in (i, t)
-
-makeTemplate :: String -> WildcardAnnotations -> Text
-makeTemplate s wca =
-  let (fName, fType) = parseTypeDeclaration' s
-      (args, res) = splitFunctionType fType
-  in T.pack (runIdent fName) <> " " <>
-     T.unwords (map (prettyPrintWildcard wca) args) <>
-     " = ?" <> T.strip (T.pack (prettyPrintTypeAtom res))
+parseTypeDeclaration' s =
+  let x = do
+        ts <- lex "" s
+        runTokenParser "" (parseDeclaration <* P.eof) ts
+  in
+    case unwrapPositioned <$> x of
+      Right (TypeDeclaration i t) -> (i, t)
+      y -> error (show y)
 
 splitFunctionType :: Type -> ([Type], Type)
 splitFunctionType t = (arguments, returns)
@@ -141,6 +147,7 @@ splitFunctionType t = (arguments, returns)
     arguments = init splitted
     splitted = splitType' t
     splitType' (ForAll _ t' _) = splitType' t'
+    splitType' (ConstrainedType _ t') = splitType' t'
     splitType' (TypeApp (TypeApp t' lhs) rhs)
           | t' == tyFunction = lhs : splitType' rhs
     splitType' t' = [t']
