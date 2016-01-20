@@ -24,7 +24,7 @@ data Command
       caseSplitLine :: Text
       , caseSplitBegin :: Int
       , caseSplitEnd :: Int
-      , caseSplitAnnotations :: CaseSplitAnnotations
+      , caseSplitAnnotations :: WildcardAnnotations
       , caseSplitType :: Type}
     | Cwd
     | Quit

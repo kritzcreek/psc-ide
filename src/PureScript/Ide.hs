@@ -75,7 +75,7 @@ listAvailableModules' dirs =
   in map T.pack cleanedModules
 
 caseSplit :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
-  Text -> Int -> Int -> CS.CaseSplitAnnotations -> Text -> m Success
+  Text -> Int -> Int -> CS.WildcardAnnotations -> Text -> m Success
 caseSplit l b e csa t = do
   patterns <- CS.makePattern l b e csa <$> CS.caseSplit t
   pure (MultilineTextResult patterns)

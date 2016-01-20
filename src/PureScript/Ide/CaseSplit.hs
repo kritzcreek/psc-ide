@@ -1,16 +1,16 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PackageImports   #-}
 {-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TemplateHaskell  #-}
 {-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE LambdaCase       #-}
 
 
 module PureScript.Ide.CaseSplit
-       ( CaseSplitAnnotations()
+       ( WildcardAnnotations()
        , explicitAnnotations
        , noAnnotations
        , makePattern
+       , makeTemplate
        , caseSplit
        ) where
 
@@ -20,12 +20,14 @@ import           Data.List (find)
 import           Data.Monoid
 import           Data.Text                   (Text)
 import qualified Data.Text                   as T
+import Language.PureScript.AST
 import           Language.PureScript.Externs
 import           Language.PureScript.Names
 import           Language.PureScript.Types
 import           Language.PureScript.Pretty
 import           Language.PureScript.Environment
 import           Language.PureScript.Parser.Types
+import           Language.PureScript.Parser.Declarations
 import           Language.PureScript.Parser.Lexer (lex)
 import           Language.PureScript.Parser.Common (runTokenParser)
 import           Prelude hiding (lex)
@@ -36,13 +38,13 @@ import           Text.Parsec as P
 
 type Constructor = (ProperName 'ConstructorName, [Type])
 
-newtype CaseSplitAnnotations = CaseSplitAnnotations Bool
+newtype WildcardAnnotations = WildcardAnnotations Bool
 
-explicitAnnotations :: CaseSplitAnnotations
-explicitAnnotations = CaseSplitAnnotations True
+explicitAnnotations :: WildcardAnnotations
+explicitAnnotations = WildcardAnnotations True
 
-noAnnotations :: CaseSplitAnnotations
-noAnnotations = CaseSplitAnnotations False
+noAnnotations :: WildcardAnnotations
+noAnnotations = WildcardAnnotations False
 
 caseSplit :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
              Text -> m [Constructor]
@@ -88,29 +90,57 @@ splitTypeConstructor = go []
     go acc (TypeConstructor tc) = pure (disqualify tc, acc)
     go _ _ = throwError (GeneralError "Failed to read TypeConstructor")
 
-prettyCtor :: CaseSplitAnnotations -> Constructor -> Text
+prettyCtor :: WildcardAnnotations -> Constructor -> Text
 prettyCtor _ (ctorName, []) = T.pack (runProperName ctorName)
-prettyCtor csa (ctorName, ctorArgs) =
+prettyCtor wsa (ctorName, ctorArgs) =
   "("<> T.pack (runProperName ctorName) <> " "
-  <> T.unwords (map (prettyCtorArg csa) ctorArgs) <>")"
+  <> T.unwords (map (prettyPrintWildcard wsa) ctorArgs) <>")"
 
-prettyCtorArg :: CaseSplitAnnotations -> Type -> Text
-prettyCtorArg (CaseSplitAnnotations True) t = "( _ :: " <> T.strip (T.pack (prettyPrintTypeAtom t)) <> ")"
-prettyCtorArg (CaseSplitAnnotations False) _ = "_"
+prettyPrintWildcard :: WildcardAnnotations -> Type -> Text
+prettyPrintWildcard (WildcardAnnotations True) = prettyWildcard
+prettyPrintWildcard (WildcardAnnotations False) = const "_"
+
+prettyWildcard :: Type -> Text
+prettyWildcard t = "( _ :: " <> T.strip (T.pack (prettyPrintTypeAtom t)) <> ")"
 
 makePattern ::
   Text -> -- ^ current line
   Int -> -- ^ begin of the split
   Int -> -- ^ end of the split
-  CaseSplitAnnotations -> -- ^ Wether to explicitly type the splits
+  WildcardAnnotations -> -- ^ Wether to explicitly type the splits
   [Constructor] -> -- ^ constructors to split
   [Text]
-makePattern t x y csa = makePattern' (T.take x t) (T.drop y t)
+makePattern t x y wsa = makePattern' (T.take x t) (T.drop y t)
   where
-    makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor csa ctor <> rhs)
+    makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor wsa ctor <> rhs)
 
 parseType' :: String -> Type
 parseType' s = let (Right t) = do
                      ts <- lex "" s
                      runTokenParser "" (parseType <* P.eof) ts
                in t
+
+parseTypeDeclaration' :: String -> (Ident, Type)
+parseTypeDeclaration' s = let (Right (TypeDeclaration i t)) = do
+                                ts <- lex "" s
+                                runTokenParser "" (parseTypeDeclaration <* P.eof) ts
+                          in (i, t)
+
+makeTemplate :: String -> WildcardAnnotations -> Text
+makeTemplate s wca =
+  let (fName, fType) = parseTypeDeclaration' s
+      (args, res) = splitFunctionType fType
+  in T.pack (runIdent fName) <> " " <>
+     T.unwords (map (prettyPrintWildcard wca) args) <>
+     " = ?" <> T.strip (T.pack (prettyPrintTypeAtom res))
+
+splitFunctionType :: Type -> ([Type], Type)
+splitFunctionType t = (arguments, returns)
+  where
+    returns = last splitted
+    arguments = init splitted
+    splitted = splitType' t
+    splitType' (ForAll _ t' _) = splitType' t'
+    splitType' (TypeApp (TypeApp t' lhs) rhs)
+          | t' == tyFunction = lhs : splitType' rhs
+    splitType' t' = [t']
