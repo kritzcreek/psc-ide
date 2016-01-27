@@ -16,26 +16,21 @@ module PureScript.Ide.CaseSplit
 
 import           "monad-logger" Control.Monad.Logger
 import           Control.Monad.Except
+import           Control.Applicative ((<|>))
 import           Data.List (find)
 import           Data.Monoid
+import Data.List (partition)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as T
-import Language.PureScript.AST
+import qualified Data.Text.IO                as T
+import           Language.PureScript
 import           Language.PureScript.Externs
-import           Language.PureScript.Names
-import           Language.PureScript.Types
-import           Language.PureScript.Pretty
-import           Language.PureScript.Environment
-import           Language.PureScript.Parser.Types
-import           Language.PureScript.Parser.Declarations
-import           Language.PureScript.Parser.Lexer (lex)
-import           Language.PureScript.Parser.Common (runTokenParser)
 import           Prelude hiding (lex)
 import           PureScript.Ide.Error
 import           PureScript.Ide.State
 import           PureScript.Ide.Types hiding (Type)
 import           PureScript.Ide.SourceFile (unwrapPositioned)
-import           Text.Parsec as P
+import qualified Text.Parsec as P
 
 type Constructor = (ProperName 'ConstructorName, [Type])
 
@@ -93,9 +88,9 @@ splitTypeConstructor = go []
 
 prettyCtor :: WildcardAnnotations -> Constructor -> Text
 prettyCtor _ (ctorName, []) = T.pack (runProperName ctorName)
-prettyCtor wsa (ctorName, ctorArgs) =
+prettyCtor wa (ctorName, ctorArgs) =
   "("<> T.pack (runProperName ctorName) <> " "
-  <> T.unwords (map (prettyPrintWildcard wsa) ctorArgs) <>")"
+  <> T.unwords (map (prettyPrintWildcard wa) ctorArgs) <>")"
 
 prettyPrintWildcard :: WildcardAnnotations -> Type -> Text
 prettyPrintWildcard (WildcardAnnotations True) = prettyWildcard
@@ -111,9 +106,9 @@ makePattern :: Text -- ^ Current line
             -> WildcardAnnotations -- ^ Whether to explicitly type the splits
             -> [Constructor] -- ^ Constructors to split
             -> [Text]
-makePattern t x y wsa = makePattern' (T.take x t) (T.drop y t)
+makePattern t x y wa = makePattern' (T.take x t) (T.drop y t)
   where
-    makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor wsa ctor <> rhs)
+    makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor wa ctor <> rhs)
 
 addClause :: Text -> WildcardAnnotations -> [Text]
 addClause s wca =
@@ -149,5 +144,46 @@ splitFunctionType t = (arguments, returns)
     splitType' (ForAll _ t' _) = splitType' t'
     splitType' (ConstrainedType _ t') = splitType' t'
     splitType' (TypeApp (TypeApp t' lhs) rhs)
-          | t' == tyFunction = lhs : splitType' rhs
+      | t' == tyFunction = lhs : splitType' rhs
     splitType' t' = [t']
+
+guessSplitType :: MonadIO m =>
+  FilePath -> (Int, Int) -> m (Maybe ((Int, Int), Type))
+guessSplitType fp pos = do
+  ls <- liftIO $ T.lines <$> T.readFile fp
+  pure (guessTypeFromAnnotation ls pos <|> guessTypeFromDeclaration lines pos)
+
+guessTypeFromDeclaration :: t -> t1 -> Maybe a
+guessTypeFromDeclaration _ _ = Nothing
+
+guessTypeFromAnnotation :: [Text] -> (Int, Int) -> Maybe ((Int, Int), Type)
+guessTypeFromAnnotation ls (row, col) = do
+  oBrace <- openingBrace line col
+  pos <- findSpan (succ oBrace) line
+  (_, t) <- pure $ parseTypeDeclaration' . T.unpack $ slice pos line
+  pure (pos, t)
+  where
+    line = ls !! row
+    slice (begin, end) = T.drop begin . T.take end
+
+
+findSpan :: Int -> Text -> Maybe (Int, Int)
+findSpan x t = case foldLI f (Left 0) (T.drop x t) of
+  Left _ -> Nothing
+  Right i -> Just (x, (i + x))
+f _ _ (Right i) = Right i
+f ')' i (Left 0) = Right i
+f ')' _ (Left acc) = Left (acc - 1)
+f '(' _ (Left acc) = Left (acc + 1)
+f _ _ acc = acc
+
+openBraces :: Text -> Int -> Maybe [Int]
+openBraces t x = if null before then Nothing else Just (last before : after)
+  where
+    (before, after) = partition (< x) $ foldLI f [] t
+    f c ix acc = acc ++ if c == '(' then [ix] else []
+
+openingBrace t = fmap head . openBraces t
+
+foldLI :: (Char -> Int -> a -> a) -> a -> Text -> a
+foldLI f i = snd . T.foldl (\(ix, acc) c -> (succ ix, f c ix acc)) (0, i)
