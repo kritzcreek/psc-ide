@@ -1,8 +1,8 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 module PureScript.Ide.Externs
   (
@@ -16,17 +16,17 @@ module PureScript.Ide.Externs
   ) where
 
 
-import           Data.Maybe                  (mapMaybe)
 import           Control.Monad.Except
-import           Data.Text (Text)
-import qualified Data.Text                   as T
-import qualified Data.Text.IO                as T
-import qualified Language.PureScript.Externs as PE
+import           Data.Maybe                           (mapMaybe)
+import           Data.Text                            (Text)
+import qualified Data.Text                            as T
+import qualified Data.Text.IO                         as T
 import qualified Language.PureScript.AST.Declarations as D
-import qualified Language.PureScript.Names   as N
-import qualified Language.PureScript.Pretty  as PP
+import qualified Language.PureScript.Externs          as PE
+import qualified Language.PureScript.Names            as N
+import qualified Language.PureScript.Pretty           as PP
 import           PureScript.Ide.CodecJSON
-import           PureScript.Ide.Error        (PscIdeError (..))
+import           PureScript.Ide.Error                 (PscIdeError (..))
 import           PureScript.Ide.Types
 
 readExternFile :: (MonadIO m, MonadError PscIdeError m) =>

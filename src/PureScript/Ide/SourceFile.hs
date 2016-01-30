@@ -1,16 +1,16 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
 module PureScript.Ide.SourceFile where
 
-import Control.Monad.Except
+import           Control.Monad.Except
 import           Data.Maybe                           (mapMaybe)
 import           Data.Monoid
 import qualified Data.Text                            as T
 import qualified Language.PureScript.AST.Declarations as D
+import qualified Language.PureScript.AST.SourcePos    as SP
+import qualified Language.PureScript.Names            as N
 import qualified Language.PureScript.Parser           as P
 import           PureScript.Ide.Error
 import           PureScript.Ide.Types
-import qualified Language.PureScript.AST.SourcePos    as SP
-import qualified Language.PureScript.Names            as N
 import           System.Directory
 
 parseModuleFromFile :: (MonadIO m, MonadError PscIdeError m) =>

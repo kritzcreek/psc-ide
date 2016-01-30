@@ -4,9 +4,9 @@ module PureScript.Ide.Error
 
 import           Data.Aeson
 import           Data.Monoid
-import           Data.Text              (Text, pack)
-import           PureScript.Ide.Types   (ModuleIdent)
-import qualified Text.Parsec.Error      as P
+import           Data.Text            (Text, pack)
+import           PureScript.Ide.Types (ModuleIdent)
+import qualified Text.Parsec.Error    as P
 
 type ErrorMsg = String
 

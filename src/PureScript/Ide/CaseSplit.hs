@@ -1,8 +1,9 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PackageImports   #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PackageImports        #-}
+{-# LANGUAGE RecordWildCards       #-}
 
 
 module PureScript.Ide.CaseSplit
@@ -14,23 +15,23 @@ module PureScript.Ide.CaseSplit
        , caseSplit
        ) where
 
-import           "monad-logger" Control.Monad.Logger
+import           Control.Applicative         ((<|>))
 import           Control.Monad.Except
-import           Control.Applicative ((<|>))
-import           Data.List (find)
+import           "monad-logger" Control.Monad.Logger
+import           Data.List                   (find)
+import           Data.List                   (partition)
 import           Data.Monoid
-import Data.List (partition)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as T
 import qualified Data.Text.IO                as T
 import           Language.PureScript
 import           Language.PureScript.Externs
-import           Prelude hiding (lex)
+import           Prelude                     hiding (lex)
 import           PureScript.Ide.Error
+import           PureScript.Ide.SourceFile   (unwrapPositioned)
 import           PureScript.Ide.State
-import           PureScript.Ide.Types hiding (Type)
-import           PureScript.Ide.SourceFile (unwrapPositioned)
-import qualified Text.Parsec as P
+import           PureScript.Ide.Types        hiding (Type)
+import qualified Text.Parsec                 as P
 
 type Constructor = (ProperName 'ConstructorName, [Type])
 

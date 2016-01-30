@@ -25,13 +25,17 @@ type Type        = Text
 data Fixity = Infix | Infixl | Infixr deriving(Show, Eq, Ord)
 
 data ExternDecl
-    = FunctionDecl { functionName :: DeclIdent
-                   , functionType :: Type}
+    = FunctionDecl
+      { functionName :: DeclIdent
+      , functionType :: Type
+      }
     | FixityDeclaration Fixity
                         Int
                         DeclIdent
-    | Dependency { dependencyModule :: ModuleIdent
-                 , dependencyNames  :: [Text]}
+    | Dependency
+      { dependencyModule :: ModuleIdent
+      , dependencyNames  :: [Text]
+      }
     | ModuleDecl ModuleIdent
                  [DeclIdent]
     | DataDecl DeclIdent
