@@ -18,6 +18,7 @@ module PureScript.Ide.Externs
 
 import           Data.Maybe                  (mapMaybe)
 import           Control.Monad.Except
+import           Data.Text (Text)
 import qualified Data.Text                   as T
 import qualified Data.Text.IO                as T
 import qualified Language.PureScript.Externs as PE
@@ -36,13 +37,13 @@ readExternFile fp = do
      Nothing -> throwError . GeneralError $ "Parsing the extern at: " ++ fp ++ " failed"
      Just externs -> pure externs
 
-moduleNameToText :: N.ModuleName -> T.Text
+moduleNameToText :: N.ModuleName -> Text
 moduleNameToText = T.pack . N.runModuleName
 
-properNameToText :: N.ProperName a -> T.Text
+properNameToText :: N.ProperName a -> Text
 properNameToText = T.pack . N.runProperName
 
-identToText :: N.Ident -> T.Text
+identToText :: N.Ident -> Text
 identToText  = T.pack . N.runIdent
 
 convertExterns :: PE.ExternsFile -> Module
@@ -63,20 +64,23 @@ convertExport (D.ModuleRef mn) = Just (Export (T.pack $ N.runModuleName mn))
 convertExport _ = Nothing
 
 convertDecl :: PE.ExternsDeclaration -> Maybe ExternDecl
-convertDecl (PE.EDType{..}) = Just $
+convertDecl PE.EDType{..} = Just $
   DataDecl
   (properNameToText edTypeName)
-  (T.pack (PP.prettyPrintKind edTypeKind))
-convertDecl (PE.EDTypeSynonym{..}) = Just $
+  (packAndStrip (PP.prettyPrintKind edTypeKind))
+convertDecl PE.EDTypeSynonym{..} = Just $
   DataDecl
   (properNameToText edTypeSynonymName)
-  (T.pack (PP.prettyPrintType edTypeSynonymType))
-convertDecl (PE.EDDataConstructor{..}) = Just $
+  (packAndStrip (PP.prettyPrintType edTypeSynonymType))
+convertDecl PE.EDDataConstructor{..} = Just $
   DataDecl
   (properNameToText edDataCtorName)
-  (T.pack (PP.prettyPrintType edDataCtorType))
-convertDecl (PE.EDValue{..}) = Just $
+  (packAndStrip (PP.prettyPrintType edDataCtorType))
+convertDecl PE.EDValue{..} = Just $
   FunctionDecl
   (identToText edValueName)
-  (T.pack (PP.prettyPrintType edValueType))
+  (packAndStrip (PP.prettyPrintType edValueType))
 convertDecl _ = Nothing
+
+packAndStrip :: String -> Text
+packAndStrip = T.unwords . fmap T.strip . T.lines . T.pack
