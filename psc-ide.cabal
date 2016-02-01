@@ -45,7 +45,7 @@ library
                        , monad-logger
                        , mtl
                        , parsec
-                       , purescript
+                       , purescript >= 0.8.0.0
                        , regex-tdfa
                        , stm
                        , text
