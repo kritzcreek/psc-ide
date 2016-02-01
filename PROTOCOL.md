@@ -378,7 +378,8 @@ Examples:
 
 ### Distance Matcher
 
-The Distance matcher isn't implemented at this point.
+The Distance matcher is meant to provide corrections for typos. It calculates
+the edit distance in between the search and the loaded identifiers.
 
 ```json
 {
