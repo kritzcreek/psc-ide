@@ -7,9 +7,11 @@ A tool which provides editor support for the PureScript language.
 
 ## Compatibility Warning
 
-psc-ide versions up to **0.3.0** are compatible with purescript versions < 0.7.5.
+psc-ide versions from **0.5.0** and downwards are only compatible with
+purescript <= 0.7.6.1
 
-psc-ide versions from **0.4.0** and onwards are only compatible with purescript >= 0.7.5.
+psc-ide versions from **0.6.0** and onwards are only compatible with
+purescript >= 0.8.0
 
 ## Installation
 
@@ -58,6 +60,7 @@ It supports the following options:
   project directory. Defaults to `output/`, relative to either the current
   directory or the directory specified by `-d`.
 - `--debug`: Enables some logging meant for debugging
+- `--version`: Output psc-ide version
 
 ## Issuing queries
 
@@ -91,5 +94,3 @@ stack exec -- psc-ide
 ## Testing
 
 The testsuite can be run with `stack test`.
-If you make changes to the tests stack won't notice them so you need to
-do `stack clean && stack install` to rebuild the tests.
