@@ -89,8 +89,11 @@ The following format is returned as the Result:
 ```
 
 
-### CaseSplit
-The CaseSplit command takes a line of source code, an area in that line of code and replaces it with all patterns for a given type:
+### CaseSplit 
+
+The CaseSplit command takes a line of source code, an area in that line of code
+and replaces it with all patterns for a given type. The parameter `annotations`
+is used to turn type annotations on or off for the constructor fields.
 
 ```json
 {
@@ -99,6 +102,7 @@ The CaseSplit command takes a line of source code, an area in that line of code 
   "line": "elem a as",
   "begin": 8,
   "end": 10,
+  "annotations": true,
   "type": "List"
  }
 }
@@ -112,6 +116,33 @@ The following format is returned as the Result:
 [
   "elem a Nil",
   "elem a (Cons (_ :: a) (_ :: List a))"
+]
+```
+You should then be able to replace the affected line of code in the editor with the new suggestions.
+
+### Add Clause
+
+The AddClause command takes a typedeclaration and generates a function template for the given type.
+The `annotations` option turns type annotations on or off for the function arguments.
+
+```json
+{
+ "command": "addClause",
+ "params": {
+  "line": "elem :: forall a. (Eq a) => a -> List a",
+  "annotations": true
+ }
+}
+```
+
+**Result:**
+
+The following format is returned as the Result:
+
+```json
+[
+  "elem :: forall a. (Eq a) => a -> List a",
+  "elem ( _ :: a) = ?elem"
 ]
 ```
 You should then be able to replace the affected line of code in the editor with the new suggestions.

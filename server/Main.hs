@@ -145,8 +145,10 @@ handleCommand (List AvailableModules) =
     listAvailableModules
 handleCommand (List (Imports fp)) =
     importsForFile fp
-handleCommand (CaseSplit l b e t) =
-    caseSplit l b e t
+handleCommand (CaseSplit l b e wca t) =
+    caseSplit l b e wca t
+handleCommand (AddClause l wca) =
+    pure $ addClause l wca
 handleCommand Cwd =
     TextResult . T.pack <$> liftIO getCurrentDirectory
 handleCommand Quit = liftIO exitSuccess

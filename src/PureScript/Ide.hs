@@ -75,10 +75,13 @@ listAvailableModules' dirs =
   in map T.pack cleanedModules
 
 caseSplit :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
-  Text -> Int -> Int -> Text -> m Success
-caseSplit l b e t = do
-  patterns <- CS.makePattern l b e <$> CS.caseSplit t
+  Text -> Int -> Int -> CS.WildcardAnnotations -> Text -> m Success
+caseSplit l b e csa t = do
+  patterns <- CS.makePattern l b e csa <$> CS.caseSplit t
   pure (MultilineTextResult patterns)
+
+addClause :: Text -> CS.WildcardAnnotations -> Success
+addClause t wca = MultilineTextResult (CS.addClause t wca)
 
 importsForFile :: (MonadIO m, MonadLogger m, MonadError PscIdeError m) =>
                   FilePath -> m Success
