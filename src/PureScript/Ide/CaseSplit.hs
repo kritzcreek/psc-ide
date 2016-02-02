@@ -104,13 +104,13 @@ prettyPrintWildcard (WildcardAnnotations False) = const "_"
 prettyWildcard :: Type -> Text
 prettyWildcard t = "( _ :: " <> T.strip (T.pack (prettyPrintTypeAtom t)) <> ")"
 
-makePattern ::
-  Text -> -- ^ current line
-  Int -> -- ^ begin of the split
-  Int -> -- ^ end of the split
-  WildcardAnnotations -> -- ^ Whether to explicitly type the splits
-  [Constructor] -> -- ^ constructors to split
-  [Text]
+-- | Constructs Patterns to insert into a sourcefile
+makePattern :: Text -- ^ Current line
+            -> Int -- ^ Begin of the split
+            -> Int -- ^ End of the split
+            -> WildcardAnnotations -- ^ Whether to explicitly type the splits
+            -> [Constructor] -- ^ Constructors to split
+            -> [Text]
 makePattern t x y wsa = makePattern' (T.take x t) (T.drop y t)
   where
     makePattern' lhs rhs = map (\ctor -> lhs <> prettyCtor wsa ctor <> rhs)
