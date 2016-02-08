@@ -8,12 +8,12 @@ import           Data.Function        (on)
 import           Data.List            (sortBy)
 import           Data.Maybe           (mapMaybe)
 import           Data.Monoid
-import           Data.Text (Text)
-import qualified Data.Text as T
+import           Data.Text            (Text)
+import qualified Data.Text            as T
 import qualified Data.Text.Encoding   as TE
 import           PureScript.Ide.Types
-import           Text.Regex.TDFA      ((=~))
 import           Text.EditDistance
+import           Text.Regex.TDFA      ((=~))
 
 
 type ScoredCompletion = (Completion, Double)

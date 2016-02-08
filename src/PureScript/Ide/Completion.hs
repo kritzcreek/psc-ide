@@ -2,7 +2,7 @@ module PureScript.Ide.Completion
        (getCompletions, getExactMatches)
        where
 
-import           Data.Maybe            (mapMaybe)
+import           Data.Maybe             (mapMaybe)
 import           PureScript.Ide.Filter
 import           PureScript.Ide.Matcher
 import           PureScript.Ide.Types

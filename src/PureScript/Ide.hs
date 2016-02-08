@@ -104,16 +104,14 @@ loadModuleDependencies ::(PscIde m, MonadLogger m, MonadError PscIdeError m) =>
                          ModuleIdent -> m Text
 loadModuleDependencies moduleName = do
   m <- getModule moduleName
-  case getDependenciesForModule <$> m of
-    Just deps -> do
-      mapM_ loadModule deps
-      -- We need to load the modules, that get reexported from the dependencies
-      depModules <- catMaybes <$> mapM getModule deps
-      -- What to do with errors here? This basically means a reexported dependency
-      -- doesn't exist in the output/ folder
-      traverse_ loadReexports depModules
-      pure ("Dependencies for " <> moduleName <> " loaded.")
-    Nothing -> throwError (ModuleNotFound moduleName)
+  deps <- maybeToEither (ModuleNotFound moduleName) (getDependenciesForModule <$> m)
+  mapM_ loadModule deps
+  -- We need to load the modules, that get reexported from the dependencies
+  depModules <- catMaybes <$> mapM getModule deps
+  -- What to do with errors here? This basically means a reexported dependency
+  -- doesn't exist in the output/ folder
+  traverse_ loadReexports depModules
+  pure ("Dependencies for " <> moduleName <> " loaded.")
 
 loadReexports :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>
                 Module -> m [ModuleIdent]

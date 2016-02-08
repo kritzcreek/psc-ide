@@ -1,9 +1,9 @@
 module PureScript.Ide.CodecJSON where
 
-import Data.Aeson
-import Data.Text (Text())
-import Data.Text.Lazy (toStrict, fromStrict)
-import Data.Text.Lazy.Encoding (decodeUtf8, encodeUtf8)
+import           Data.Aeson
+import           Data.Text               (Text ())
+import           Data.Text.Lazy          (fromStrict, toStrict)
+import           Data.Text.Lazy.Encoding (decodeUtf8, encodeUtf8)
 
 encodeT :: (ToJSON a) => a -> Text
 encodeT = toStrict . decodeUtf8 . encode

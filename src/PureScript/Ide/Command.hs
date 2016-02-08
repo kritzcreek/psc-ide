@@ -3,32 +3,43 @@ module PureScript.Ide.Command where
 
 import           Control.Monad
 import           Data.Aeson
-import           Data.Text (Text)
 import           Data.Maybe
+import           Data.Text                (Text)
+import           PureScript.Ide.CaseSplit
 import           PureScript.Ide.Filter
 import           PureScript.Ide.Matcher
 import           PureScript.Ide.Types
-import           PureScript.Ide.CaseSplit
 
 data Command
-    = Load { loadModules      :: [ModuleIdent]
-           , loadDependencies :: [ModuleIdent]}
-    | Type { typeSearch  :: DeclIdent
-           , typeFilters :: [Filter]}
-    | Complete { completeFilters :: [Filter]
-               , completeMatcher :: Matcher}
-    | Pursuit { pursuitQuery      :: PursuitQuery
-              , pursuitSearchType :: PursuitSearchType}
-    | List {listType :: ListType}
-    | CaseSplit {
-      caseSplitLine :: Text
+    = Load
+      { loadModules      :: [ModuleIdent]
+      , loadDependencies :: [ModuleIdent]
+      }
+    | Type
+      { typeSearch  :: DeclIdent
+      , typeFilters :: [Filter]
+      }
+    | Complete
+      { completeFilters :: [Filter]
+      , completeMatcher :: Matcher
+      }
+    | Pursuit
+      { pursuitQuery      :: PursuitQuery
+      , pursuitSearchType :: PursuitSearchType
+      }
+    | List
+      { listType :: ListType }
+    | CaseSplit
+      { caseSplitLine :: Text
       , caseSplitBegin :: Int
       , caseSplitEnd :: Int
       , caseSplitAnnotations :: WildcardAnnotations
-      , caseSplitType :: Type}
-    | AddClause {
-      addClauseLine :: Text
-      , addClauseAnnotations :: WildcardAnnotations}
+      , caseSplitType :: Type
+      }
+    | AddClause
+      { addClauseLine          :: Text
+      , addClauseAnnotations :: WildcardAnnotations
+      }
     | Cwd
     | Quit
 
