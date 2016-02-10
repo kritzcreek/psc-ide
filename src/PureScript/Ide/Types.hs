@@ -31,7 +31,8 @@ data ExternDecl
                         Int
                         DeclIdent
     | Dependency { dependencyModule :: ModuleIdent
-                 , dependencyNames  :: [Text]}
+                 , dependencyNames  :: [Text]
+                 , dependencyAlias  :: Maybe Text }
     | ModuleDecl ModuleIdent
                  [DeclIdent]
     | DataDecl DeclIdent
@@ -43,7 +44,7 @@ instance ToJSON ExternDecl where
   toJSON (FunctionDecl n t)        = object ["name" .= n, "type" .= t]
   toJSON (ModuleDecl   n t)        = object ["name" .= n, "type" .= t]
   toJSON (DataDecl     n t)        = object ["name" .= n, "type" .= t]
-  toJSON (Dependency   n names)    = object ["module" .= n, "names" .= names]
+  toJSON (Dependency   n names _)    = object ["module" .= n, "names" .= names]
   toJSON (FixityDeclaration f p n) = object ["name" .= n
                                             , "fixity" .= show f
                                             , "precedence" .= p]

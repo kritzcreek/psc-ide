@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module PureScript.Ide.Reexports where
 
-import           Data.List            (union)
+import           Data.List            (union, find)
 import           Data.Map             (Map)
 import qualified Data.Map             as Map
 import           Data.Maybe
@@ -10,9 +10,23 @@ import           PureScript.Ide.Types
 getReexports :: Module -> [ExternDecl]
 getReexports (mn, decls)= mapMaybe getExport decls
   where getExport e@(Export mn')
-          | mn /= mn' = Just e
+          | mn /= mn' = replaceExportWithAlias decls mn'
           | otherwise = Nothing
         getExport _ = Nothing
+
+dependencyToExport :: ExternDecl -> ExternDecl
+dependencyToExport (Dependency m _ _) = Export m
+dependencyToExport decl = decl
+
+replaceExportWithAlias :: [ExternDecl] -> ModuleIdent -> Maybe ExternDecl
+replaceExportWithAlias decls ident =
+  case find isMatch decls of
+    Just m -> Just $ dependencyToExport m
+    Nothing -> Just $ Export ident
+  where isMatch (Dependency _ _ (Just alias))
+          | alias == ident = True
+          | otherwise = False
+        isMatch _ = False
 
 replaceReexport :: ExternDecl -> Module -> Module -> Module
 replaceReexport e@(Export _) (m, decls) (_, newDecls) =

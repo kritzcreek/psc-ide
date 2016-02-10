@@ -1,24 +1,25 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PackageImports  #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE PackageImports   #-}
+{-# LANGUAGE TemplateHaskell  #-}
 module PureScript.Ide.Internal.Sandbox where
 
 
 import           Control.Concurrent.STM
+import           Control.Lens                (over, _1, _2)
+import           Control.Monad.Except
 import           "monad-logger" Control.Monad.Logger
 import           Control.Monad.Reader
-import           Control.Monad.Except
-import           PureScript.Ide.State
-import           PureScript.Ide.Externs
-import           PureScript.Ide.Types
-import PureScript.Ide.Error
-import Control.Lens (over, _1, _2)
-import qualified Data.Text as T
-import Language.PureScript.Externs
-import Language.PureScript.Pretty
-import Language.PureScript.Names
-import qualified Data.Map as M
+import qualified Data.Map                    as M
+import qualified Data.Text                   as T
+import           Language.PureScript.Externs
+import           Language.PureScript.Names
+import           Language.PureScript.Pretty
 import           PureScript.Ide.CaseSplit
+import           PureScript.Ide.Error
+import           PureScript.Ide.Externs
+import           PureScript.Ide.State
+import           PureScript.Ide.Types
+import           PureScript.Ide.Filter
 ---- Testing stuff
 
 env ss = PscEnvironment
@@ -63,3 +64,14 @@ run = runWithExternsFiles [
 -- testing = do
 --   (Just ef) <- M.lookup (moduleNameFromString "Data.Either") <$> getExternFiles
 --   liftIO $ print $ getCtorArgs ef (ProperName "Either")
+
+unsafeRight :: (Either a b) -> b
+unsafeRight (Right b) = b
+
+testModuleFilter = moduleFilter ["Halogen.HTML.Indexed"]
+testDependencyFilter = dependencyFilter ["Halogen.HTML.Indexed"]
+runTest externsFile =
+   convertExterns . unsafeRight <$> (runExceptT $ readExternFile externsFile)
+
+runTestFilter filter pscmod =
+  applyFilters [filter] [pscmod]

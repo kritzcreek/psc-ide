@@ -57,10 +57,15 @@ convertExterns ef = (moduleName, exportDecls ++ importDecls ++ otherDecls)
     otherDecls = mapMaybe convertDecl (PE.efDeclarations ef)
 
 convertImport :: PE.ExternsImport -> ExternDecl
-convertImport ei = Dependency (moduleNameToText (PE.eiModule ei)) []
+convertImport ei =
+  Dependency
+  (moduleNameToText (PE.eiModule ei))
+  []
+  (T.pack . N.runModuleName <$> PE.eiImportedAs ei)
 
 convertExport :: D.DeclarationRef -> Maybe ExternDecl
 convertExport (D.ModuleRef mn) = Just (Export (T.pack $ N.runModuleName mn))
+convertExport (D.PositionedDeclarationRef _ _ (D.ModuleRef mn)) = Just (Export (T.pack $ N.runModuleName mn))
 convertExport _ = Nothing
 
 convertDecl :: PE.ExternsDeclaration -> Maybe ExternDecl

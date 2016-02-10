@@ -11,7 +11,7 @@ modules =
     ("Module.A", [FunctionDecl "function1" ""]),
     ("Module.B", [DataDecl "data1" ""]),
     ("Module.C", [ModuleDecl "Module.C" []]),
-    ("Module.D", [Dependency "Module.C" [], FunctionDecl "asd" ""])
+    ("Module.D", [Dependency "Module.C" [] Nothing, FunctionDecl "asd" ""])
   ]
 
 runEq s = runFilter (equalityFilter s) modules
