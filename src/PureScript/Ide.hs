@@ -124,7 +124,7 @@ loadReexports m = case getReexports m of
     -- If this ever fails I'll need to look at GADTs
     let reexports = map (\(Export mn) -> mn) exportDeps
     $(logDebug) ("Loading reexports for module: " <> fst m <>
-                 " reexports: " <> T.concat reexports)
+                 " reexports: " <> (T.intercalate ", " reexports))
     traverse_ loadModule reexports
     exportDepsModules <- catMaybes <$> traverse getModule reexports
     exportDepDeps <- traverse loadReexports exportDepsModules
@@ -132,7 +132,7 @@ loadReexports m = case getReexports m of
 
 getDependenciesForModule :: Module -> [ModuleIdent]
 getDependenciesForModule (_, decls) = mapMaybe getDependencyName decls
-  where getDependencyName (Dependency dependencyName _) = Just dependencyName
+  where getDependencyName (Dependency dependencyName _ _) = Just dependencyName
         getDependencyName _ = Nothing
 
 loadModule :: (PscIde m, MonadLogger m, MonadError PscIdeError m) =>

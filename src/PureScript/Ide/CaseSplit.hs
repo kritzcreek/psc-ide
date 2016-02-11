@@ -34,7 +34,7 @@ import           Prelude hiding (lex)
 import           PureScript.Ide.Error
 import           PureScript.Ide.State
 import           PureScript.Ide.Types hiding (Type)
-import           PureScript.Ide.SourceFile (unwrapPositioned)
+import           PureScript.Ide.Externs (unwrapPositioned)
 import           Text.Parsec as P
 
 type Constructor = (ProperName 'ConstructorName, [Type])

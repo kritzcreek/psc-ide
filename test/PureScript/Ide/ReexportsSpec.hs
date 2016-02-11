@@ -11,6 +11,8 @@ import Control.Exception (evaluate)
 decl1 = FunctionDecl "filter" "asdasd"
 decl2 = DataDecl "Tree" "* -> *"
 decl3 = DataDecl "TreeAsd" "* -> *"
+dep1 = Dependency "Test.Foo" [] (Just "T")
+dep2 = Dependency "Test.Bar" [] (Just "T")
 
 circularModule = ("Circular", [Export "Circular"])
 
@@ -22,6 +24,9 @@ module2 = ("Module2", [decl2])
 
 module3 :: Module
 module3 = ("Module3", [decl3])
+
+module4 :: Module
+module4 = ("Module4", [Export "T", decl1, dep1, dep2])
 
 result :: Module
 result = ("Module1", [decl1, decl2, Export "Module3"])
@@ -58,3 +63,6 @@ spec = do
     it "does not include circular references when replacing reexports" $
       replaceReexports circularModule (uncurry Map.singleton circularModule )
       `shouldBe` ("Circular", [])
+
+    it "replaces exported aliases with imported module" $
+      getReexports module4 `shouldBe` [Export "Test.Foo", Export "Test.Bar"]

@@ -8,11 +8,25 @@ import           Data.Maybe
 import           PureScript.Ide.Types
 
 getReexports :: Module -> [ExternDecl]
-getReexports (mn, decls)= mapMaybe getExport decls
-  where getExport e@(Export mn')
-          | mn /= mn' = Just e
-          | otherwise = Nothing
-        getExport _ = Nothing
+getReexports (mn, decls)= concatMap getExport decls
+  where getExport d
+          | (Export mn') <- d
+          , mn /= mn' = replaceExportWithAliases decls mn'
+          | otherwise = []
+
+dependencyToExport :: ExternDecl -> ExternDecl
+dependencyToExport (Dependency m _ _) = Export m
+dependencyToExport decl = decl
+
+replaceExportWithAliases :: [ExternDecl] -> ModuleIdent -> [ExternDecl]
+replaceExportWithAliases decls ident =
+  case filter isMatch decls of
+    [] -> [Export ident]
+    aliases -> map dependencyToExport aliases
+  where isMatch d
+          | Dependency _ _ (Just alias) <- d
+          , alias == ident = True
+          | otherwise = False
 
 replaceReexport :: ExternDecl -> Module -> Module -> Module
 replaceReexport e@(Export _) (m, decls) (_, newDecls) =

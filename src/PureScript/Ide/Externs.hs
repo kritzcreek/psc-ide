@@ -12,7 +12,9 @@ module PureScript.Ide.Externs
     Type,
     Fixity(..),
     readExternFile,
-    convertExterns
+    convertExterns,
+    unwrapPositioned,
+    unwrapPositionedRef
   ) where
 
 
@@ -51,16 +53,20 @@ convertExterns ef = (moduleName, exportDecls ++ importDecls ++ otherDecls)
   where
     moduleName = moduleNameToText (PE.efModuleName ef)
     importDecls = convertImport <$> PE.efImports ef
-    exportDecls = mapMaybe convertExport (PE.efExports ef)
+    exportDecls = mapMaybe (convertExport . unwrapPositionedRef) (PE.efExports ef)
     -- Ignoring operator fixities for now since we're not using them
     -- operatorDecls = convertOperator <$> PE.efFixities ef
     otherDecls = mapMaybe convertDecl (PE.efDeclarations ef)
 
 convertImport :: PE.ExternsImport -> ExternDecl
-convertImport ei = Dependency (moduleNameToText (PE.eiModule ei)) []
+convertImport ei =
+  Dependency
+  (moduleNameToText (PE.eiModule ei))
+  []
+  (moduleNameToText <$> PE.eiImportedAs ei)
 
 convertExport :: D.DeclarationRef -> Maybe ExternDecl
-convertExport (D.ModuleRef mn) = Just (Export (T.pack $ N.runModuleName mn))
+convertExport (D.ModuleRef mn) = Just (Export (moduleNameToText mn))
 convertExport _ = Nothing
 
 convertDecl :: PE.ExternsDeclaration -> Maybe ExternDecl
@@ -84,3 +90,11 @@ convertDecl _ = Nothing
 
 packAndStrip :: String -> Text
 packAndStrip = T.unwords . fmap T.strip . T.lines . T.pack
+
+unwrapPositioned :: D.Declaration -> D.Declaration
+unwrapPositioned (D.PositionedDeclaration _ _ x) = x
+unwrapPositioned x = x
+
+unwrapPositionedRef :: D.DeclarationRef -> D.DeclarationRef
+unwrapPositionedRef (D.PositionedDeclarationRef _ _ x) = x
+unwrapPositionedRef x = x

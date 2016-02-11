@@ -44,7 +44,7 @@ dependencyFilter' moduleIdents mods =
 
     extractDeps :: Module -> [ModuleIdent]
     extractDeps = mapMaybe extractDep . snd
-      where extractDep (Dependency n _) = Just n
+      where extractDep (Dependency n _ _) = Just n
             extractDep (ModuleDecl _ _) = Nothing
             extractDep _ = Nothing
 
