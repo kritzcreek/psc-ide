@@ -9,6 +9,7 @@ import qualified Language.PureScript.AST.Declarations as D
 import qualified Language.PureScript.Parser           as P
 import           PureScript.Ide.Error
 import           PureScript.Ide.Types
+import           PureScript.Ide.Externs
 import qualified Language.PureScript.AST.SourcePos    as SP
 import qualified Language.PureScript.Names            as N
 import           System.Directory
@@ -62,14 +63,6 @@ getPositionedImports (D.Module _ _ _ declarations _) =
   where
     isImport i@(D.PositionedDeclaration _ _ (D.ImportDeclaration{})) = Just i
     isImport _ = Nothing
-
-unwrapPositioned :: D.Declaration -> D.Declaration
-unwrapPositioned (D.PositionedDeclaration _ _ x) = x
-unwrapPositioned x = x
-
-unwrapPositionedRef :: D.DeclarationRef -> D.DeclarationRef
-unwrapPositionedRef (D.PositionedDeclarationRef _ _ x) = x
-unwrapPositionedRef x = x
 
 getDeclPosition :: D.Module -> String -> Maybe SP.SourceSpan
 getDeclPosition m ident =
