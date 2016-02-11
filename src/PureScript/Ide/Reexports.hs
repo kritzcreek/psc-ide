@@ -9,24 +9,24 @@ import           PureScript.Ide.Types
 
 getReexports :: Module -> [ExternDecl]
 getReexports (mn, decls)= mapMaybe getExport decls
-  where getExport e@(Export mn')
-          | mn /= mn' = replaceExportWithAlias decls mn'
+  where getExport d
+          | (Export mn') <- d
+          , mn /= mn' = Just (replaceExportWithAlias decls mn')
           | otherwise = Nothing
-        getExport _ = Nothing
 
 dependencyToExport :: ExternDecl -> ExternDecl
 dependencyToExport (Dependency m _ _) = Export m
 dependencyToExport decl = decl
 
-replaceExportWithAlias :: [ExternDecl] -> ModuleIdent -> Maybe ExternDecl
+replaceExportWithAlias :: [ExternDecl] -> ModuleIdent -> ExternDecl
 replaceExportWithAlias decls ident =
   case find isMatch decls of
-    Just m -> Just $ dependencyToExport m
-    Nothing -> Just $ Export ident
-  where isMatch (Dependency _ _ (Just alias))
-          | alias == ident = True
+    Just m -> dependencyToExport m
+    Nothing -> Export ident
+  where isMatch d
+          | Dependency _ _ (Just alias) <- d
+          , alias == ident = True
           | otherwise = False
-        isMatch _ = False
 
 replaceReexport :: ExternDecl -> Module -> Module -> Module
 replaceReexport e@(Export _) (m, decls) (_, newDecls) =
