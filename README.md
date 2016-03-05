@@ -1,17 +1,13 @@
+# DEPRECATION WARNING: 
+
+psc-ide is now distributed with the compiler. This repo won't be kept in sync.
+
 psc-ide
 ===
 
 A tool which provides editor support for the PureScript language.
 
 [![Build Status](https://travis-ci.org/kRITZCREEK/psc-ide.svg?branch=travis-build)](https://travis-ci.org/kRITZCREEK/psc-ide)
-
-## Compatibility Warning
-
-psc-ide versions from **0.5.0** and downwards are only compatible with
-purescript <= 0.7.6.1
-
-psc-ide versions from **0.6.0** and onwards are only compatible with
-purescript >= 0.8.0
 
 ## Installation
 
